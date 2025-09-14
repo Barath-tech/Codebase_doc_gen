@@ -1,267 +1,534 @@
+# docs/generator.py
 import os
+import re
+import json
+import markdown
 from datetime import datetime
 from typing import Dict
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
 
-class DocumentationGenerator:
+class StructuredDocumentationGenerator:
     def __init__(self, output_dir: str):
         self.output_dir = output_dir
-        os.makedirs(output_dir, exist_ok=True)
-
-    def generate_documentation(self, metadata: Dict, llm_summaries: Dict,
-                               graph_stats: Dict, dependency_graph_path: str) -> tuple:
-        """Generate complete documentation in HTML and PDF formats (using ReportLab for PDF)."""
-
-        # Generate markdown content
-        markdown_content = self._create_markdown_content(
-            metadata, llm_summaries, graph_stats, dependency_graph_path
+        self.docs_dir = os.path.join(output_dir, 'docs')
+        os.makedirs(self.docs_dir, exist_ok=True)
+        
+    def generate_structured_docs(self, metadata: Dict, llm_sections: Dict, 
+                                 graph_stats: Dict, dependency_graph_path: str) -> Dict:
+        """Generate structured documentation files."""
+        
+        generated_files = {}
+        
+        # 1. Generate index.md (Overview)
+        generated_files['index'] = self._generate_index_md(metadata, llm_sections.get('overview', ''))
+        
+        # 2. Generate architecture.md
+        generated_files['architecture'] = self._generate_architecture_md(
+            metadata, llm_sections.get('architecture', ''), graph_stats, dependency_graph_path
         )
-
-        markdown_path = os.path.join(self.output_dir, 'documentation.md')
-        with open(markdown_path, 'w', encoding='utf-8') as f:
-            f.write(markdown_content)
-
-        # Generate HTML
-        html_content = self._create_html_content(
-            metadata, llm_summaries, graph_stats, dependency_graph_path
+        
+        # 3. Generate database.md
+        generated_files['database'] = self._generate_database_md(
+            metadata, llm_sections.get('database', '')
         )
-        html_path = os.path.join(self.output_dir, 'documentation.html')
-        with open(html_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-
-        # Generate PDF with ReportLab
-        pdf_path = os.path.join(self.output_dir, 'documentation.pdf')
-        try:
-            self._create_pdf(markdown_content, pdf_path)
-        except Exception as e:
-            print(f"Warning: PDF generation failed: {e}")
-            pdf_path = None
-
-        return html_path, pdf_path, markdown_path
-
-    def _create_pdf(self, text_content: str, pdf_path: str):
-        """Create a simple PDF using ReportLab from the markdown content (as plain text)."""
-        doc = SimpleDocTemplate(pdf_path, pagesize=A4)
-        styles = getSampleStyleSheet()
-        story = []
-
-        for line in text_content.split("\n"):
-            if line.startswith("# "):
-                story.append(Paragraph(f"<b><font size=16>{line[2:]}</font></b>", styles["Heading1"]))
-            elif line.startswith("## "):
-                story.append(Paragraph(f"<b><font size=14>{line[3:]}</font></b>", styles["Heading2"]))
-            elif line.startswith("### "):
-                story.append(Paragraph(f"<b><font size=12>{line[4:]}</font></b>", styles["Heading3"]))
-            else:
-                story.append(Paragraph(line, styles["Normal"]))
-            story.append(Spacer(1, 8))
-
-        doc.build(story)
-
-    def _create_markdown_content(self, metadata: Dict, llm_summaries: Dict,
-                                graph_stats: Dict, dependency_graph_path: str) -> str:
-        """(Unchanged) Create markdown documentation content."""
-        content = f"""# Codebase Documentation
+        
+        # 4. Generate classes.md
+        generated_files['classes'] = self._generate_classes_md(
+            metadata, llm_sections.get('classes', '')
+        )
+        
+        # 5. Generate web.md
+        generated_files['web'] = self._generate_web_md(
+            metadata, llm_sections.get('web', '')
+        )
+        
+        # Generate consolidated HTML and PDF
+        generated_files['html'] = self._generate_consolidated_html(generated_files, metadata)
+        generated_files['pdf'] = self._generate_consolidated_pdf(generated_files, metadata)
+        
+        return generated_files
+    
+    def _generate_index_md(self, metadata: Dict, overview_content: str) -> str:
+        """Generate index.md with project overview."""
+        
+        content = f"""# Project Documentation
 
 Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 ## Overview
 
-{llm_summaries.get('codebase_summary', 'No summary available')}
+{overview_content}
 
 ## Project Statistics
 
-- **Total Files**: {metadata['total_files']}
-- **Total Lines of Code**: {metadata['total_lines']}
-- **Languages Used**: {len(metadata['language_stats'])}
+| Metric | Value |
+|--------|-------|
+| Total Files | {metadata['total_files']} |
+| Total Lines of Code | {metadata['total_lines']:,} |
+| Languages Used | {len(metadata['language_stats'])} |
+
+### Technology Stack
+
 """
+        
         for lang, stats in metadata['language_stats'].items():
-            content += f"- **{lang.title()}**: {stats['files']} files, {stats['lines']} lines\n"
-
+            percentage = (stats['lines'] / metadata['total_lines'] * 100) if metadata['total_lines'] > 0 else 0
+            content += f"- **{lang.title()}**: {stats['files']} files, {stats['lines']:,} lines ({percentage:.1f}%)\n"
+        
         content += f"""
-## Architectural Insights
 
-{llm_summaries.get('architectural_insights', 'No insights available')}
+## Documentation Sections
+
+- [🏗️ Architecture](./architecture.md) - System architecture and design patterns
+- [🗄️ Database](./database.md) - Database schema and data management
+- [🏷️ Classes](./classes.md) - Object-oriented design and class structures  
+- [🌐 Web](./web.md) - Web interface and API documentation
+
+## Quick Navigation
+
+### Project Structure
+- **Web Components**: {len(metadata.get('project_structure', {}).get('web_files', []))} files
+- **Backend Logic**: {len(metadata.get('project_structure', {}).get('backend_files', []))} files
+- **Database Scripts**: {len(metadata.get('project_structure', {}).get('database_files', []))} files
+- **Configuration**: {len(metadata.get('project_structure', {}).get('config_files', []))} files
+- **Tests**: {len(metadata.get('project_structure', {}).get('test_files', []))} files
+- **Documentation**: {len(metadata.get('project_structure', {}).get('documentation_files', []))} files
+
+---
+
+*This documentation is automatically generated and provides both technical details for developers and explanatory content for stakeholders.*
+"""
+        
+        index_path = os.path.join(self.docs_dir, 'index.md')
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return index_path
+    
+    def _generate_architecture_md(self, metadata: Dict, architecture_content: str, 
+                                  graph_stats: Dict, dependency_graph_path: str) -> str:
+        """Generate architecture.md with system design documentation."""
+        
+        content = f"""# System Architecture
+
+## Architecture Overview
+
+{architecture_content}
 
 ## Dependency Analysis
 
+### Graph Metrics
 - **Total Modules**: {graph_stats.get('total_nodes', 0)}
 - **Dependencies**: {graph_stats.get('total_edges', 0)}
 - **Graph Density**: {graph_stats.get('density', 0):.3f}
-- **Is Connected**: {graph_stats.get('is_connected', False)}
-- **Average Degree**: {graph_stats.get('average_degree', 0):.2f}
+- **Connectivity**: {'Well Connected' if graph_stats.get('is_connected', False) else 'Loosely Connected'}
+- **Average Connections per Module**: {graph_stats.get('average_degree', 0):.2f}
 
-## File Analysis
+### Component Breakdown
+
 """
-        files_by_lang = {}
+        
+        # Analyze components by type
+        project_structure = metadata.get('project_structure', {})
+        
+        for component_type, files in project_structure.items():
+            if files:
+                content += f"#### {component_type.replace('_', ' ').title()}\n"
+                content += f"- **Count**: {len(files)} files\n"
+                content += f"- **Total Lines**: {sum(f.get('lines', 0) for f in files):,}\n"
+                
+                # Show key files
+                key_files = sorted(files, key=lambda x: x.get('lines', 0), reverse=True)[:5]
+                content += "- **Key Files**:\n"
+                for file_data in key_files:
+                    content += f"  - `{file_data['path']}` ({file_data.get('lines', 0)} lines)\n"
+                content += "\n"
+        
+        if dependency_graph_path:
+            content += f"""
+## Dependency Visualization
+
+An interactive dependency graph has been generated showing the relationships between modules.
+
+*View the dependency graph: [dependency_graph.html](../dependency_graph.html)*
+
+## Integration Patterns
+
+Based on the analysis, the system follows these integration patterns:
+"""
+        
+        # Add technical architecture details
+        content += """
+## Technical Layers
+
+### Presentation Layer
+- User interface components
+- Web pages and forms
+- Client-side scripting
+
+### Business Logic Layer  
+- Application logic and workflows
+- Data processing and validation
+- Business rules implementation
+
+### Data Access Layer
+- Database connections and queries
+- Data persistence and retrieval
+- Transaction management
+
+---
+
+[← Back to Overview](./index.md) | [Database Documentation →](./database.md)
+"""
+        
+        arch_path = os.path.join(self.docs_dir, 'architecture.md')
+        with open(arch_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return arch_path
+    
+    def _generate_database_md(self, metadata: Dict, database_content: str) -> str:
+        """Generate database.md with database documentation."""
+        
+        db_files = metadata.get('project_structure', {}).get('database_files', [])
+        
+        content = f"""# Database Documentation
+
+## Database Overview
+
+{database_content}
+
+## Database Files
+
+Total SQL files found: **{len(db_files)}**
+
+"""
+        
+        if db_files:
+            content += "### SQL Scripts\n\n"
+            content += "| File | Lines | Purpose |\n"
+            content += "|------|-------|--------|\n"
+            
+            for file_data in sorted(db_files, key=lambda x: x.get('lines', 0), reverse=True):
+                purpose = self._infer_sql_purpose(file_data['path'])
+                content += f"| `{file_data['path']}` | {file_data.get('lines', 0)} | {purpose} |\n"
+            
+            # Extract and display tables/procedures
+            all_tables = []
+            all_procedures = []
+            
+            for file_data in db_files:
+                all_tables.extend(file_data.get('tables', []))
+                all_procedures.extend(file_data.get('procedures', []))
+            
+            if all_tables:
+                content += f"\n### Database Tables ({len(all_tables)} found)\n\n"
+                for table in sorted(all_tables, key=lambda x: x['name']):
+                    content += f"- **{table['name']}** (defined in line {table['line']})\n"
+            
+            if all_procedures:
+                content += f"\n### Stored Procedures ({len(all_procedures)} found)\n\n"
+                for proc in sorted(all_procedures, key=lambda x: x['name']):
+                    content += f"- **{proc['name']}** (defined in line {proc['line']})\n"
+        else:
+            content += "*No SQL files detected in the project.*\n"
+        
+        content += """
+
+## Database Setup
+
+*Refer to the specific SQL scripts for database setup and configuration instructions.*
+
+## Data Relationships
+
+*Entity relationships are defined through foreign key constraints and table references found in the SQL scripts.*
+
+---
+
+[← Architecture](./architecture.md) | [Classes Documentation →](./classes.md)
+"""
+        
+        db_path = os.path.join(self.docs_dir, 'database.md')
+        with open(db_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return db_path
+    
+    def _generate_classes_md(self, metadata: Dict, classes_content: str) -> str:
+        """Generate classes.md with class documentation."""
+        
+        content = f"""# Classes and Object-Oriented Design
+
+## Class Overview
+
+{classes_content}
+
+## Class Analysis
+
+"""
+        
+        # Collect all classes by language
+        classes_by_lang = {}
+        functions_by_lang = {}
+        
         for file_data in metadata['files']:
             lang = file_data['language']
-            files_by_lang.setdefault(lang, []).append(file_data)
-
-        for lang, files in files_by_lang.items():
-            content += f"\n### {lang.title()} Files\n\n"
-            for file_data in files[:10]:
-                content += f"#### {file_data['path']}\n\n"
-                content += f"- **Lines**: {file_data['lines']}\n"
-                if file_data.get('functions'):
-                    content += f"- **Functions**: {len(file_data['functions'])}\n"
-                if file_data.get('classes'):
-                    content += f"- **Classes**: {len(file_data['classes'])}\n"
-                if file_data.get('imports'):
-                    content += f"- **Imports**: {len(file_data['imports'])}\n"
-                file_summary = llm_summaries.get('file_summaries', {}).get(file_data['path'])
-                if file_summary:
-                    content += f"\n**Summary**: {file_summary}\n"
-                content += "\n"
-
-            if len(files) > 10:
-                content += f"*... and {len(files) - 10} more {lang} files*\n\n"
-
-        return content
-    
-    def _create_html_content(self, metadata: Dict, llm_summaries: Dict, 
-                            graph_stats: Dict, dependency_graph_path: str) -> str:
-        """Create HTML documentation content."""
+            if file_data.get('classes'):
+                if lang not in classes_by_lang:
+                    classes_by_lang[lang] = []
+                for cls in file_data['classes']:
+                    cls_info = cls.copy()
+                    cls_info['file'] = file_data['path']
+                    classes_by_lang[lang].append(cls_info)
+            
+            if file_data.get('functions'):
+                if lang not in functions_by_lang:
+                    functions_by_lang[lang] = 0
+                functions_by_lang[lang] += len(file_data['functions'])
         
-        # Embed dependency graph if it exists
-        graph_embed = ""
-        if dependency_graph_path and os.path.exists(dependency_graph_path):
-            try:
-                with open(dependency_graph_path, 'r', encoding='utf-8') as f:
-                    graph_content = f.read()
-                # Extract the div content from the plotly HTML
-                start = graph_content.find('<div')
-                end = graph_content.rfind('</div>') + 6
-                if start != -1 and end != -1:
-                    graph_embed = graph_content[start:end]
-            except Exception as e:
-                graph_embed = f"<p>Error loading dependency graph: {e}</p>"
+        # Display classes by language
+        for lang, classes in classes_by_lang.items():
+            content += f"### {lang.title()} Classes\n\n"
+            content += f"Total classes found: **{len(classes)}**\n\n"
+            
+            # Group by file for better organization
+            classes_by_file = {}
+            for cls in classes:
+                file_path = cls['file']
+                if file_path not in classes_by_file:
+                    classes_by_file[file_path] = []
+                classes_by_file[file_path].append(cls)
+            
+            for file_path, file_classes in classes_by_file.items():
+                content += f"#### {file_path}\n\n"
+                for cls in sorted(file_classes, key=lambda x: x['line']):
+                    content += f"**{cls['name']}** (line {cls['line']})\n"
+                    if cls.get('docstring'):
+                        content += f"- *{cls['docstring'][:100]}...*\n"
+                    if cls.get('methods'):
+                        content += f"- Methods: {', '.join(cls['methods'])}\n"
+                    content += "\n"
+        
+        # Function summary
+        if functions_by_lang:
+            content += "## Function Summary\n\n"
+            content += "| Language | Function Count |\n"
+            content += "|----------|---------------|\n"
+            for lang, count in functions_by_lang.items():
+                content += f"| {lang.title()} | {count} |\n"
+        
+        content += """
+
+## Design Patterns
+
+*Object-oriented design patterns and architectural decisions are reflected in the class structure and relationships documented above.*
+
+---
+
+[← Database](./database.md) | [Web Documentation →](./web.md)
+"""
+        
+        classes_path = os.path.join(self.docs_dir, 'classes.md')
+        with open(classes_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return classes_path
+    
+    def _generate_web_md(self, metadata: Dict, web_content: str) -> str:
+        """Generate web.md with web interface documentation."""
+        
+        web_files = metadata.get('project_structure', {}).get('web_files', [])
+        
+        content = f"""# Web Interface Documentation
+
+## Web Overview
+
+{web_content}
+
+## Web Components Analysis
+
+Total web files: **{len(web_files)}**
+
+"""
+        
+        if web_files:
+            # Categorize web files
+            jsp_files = [f for f in web_files if f['language'] == 'jsp']
+            html_files = [f for f in web_files if f['language'] == 'html']
+            css_files = [f for f in web_files if f['language'] == 'css']
+            js_files = [f for f in web_files if f['language'] in ['javascript', 'typescript']]
+            
+            # JSP Pages
+            if jsp_files:
+                content += f"### JSP Pages ({len(jsp_files)})\n\n"
+                content += "| Page | Lines | Includes | Java Imports |\n"
+                content += "|------|-------|----------|-------------|\n"
+                
+                for jsp in sorted(jsp_files, key=lambda x: x['path']):
+                    includes = len(jsp.get('jsp_includes', []))
+                    imports = len(jsp.get('java_imports', []))
+                    content += f"| `{jsp['path']}` | {jsp.get('lines', 0)} | {includes} | {imports} |\n"
+                
+                # Navigation flow analysis
+                content += "\n#### Navigation Flow\n\n"
+                all_includes = []
+                all_forwards = []
+                
+                for jsp in jsp_files:
+                    all_includes.extend(jsp.get('jsp_includes', []))
+                    for dep in jsp.get('dependencies', []):
+                        if dep['type'] == 'jsp_forward':
+                            all_forwards.append(dep['name'])
+                
+                if all_includes:
+                    content += f"**Common Includes**: {', '.join(set(all_includes))}\n\n"
+                if all_forwards:
+                    content += f"**Page Forwards**: {', '.join(set(all_forwards))}\n\n"
+            
+            # HTML Pages
+            if html_files:
+                content += f"### HTML Pages ({len(html_files)})\n\n"
+                for html in sorted(html_files, key=lambda x: x['path']):
+                    content += f"- **{html['path']}** ({html.get('lines', 0)} lines)\n"
+                    if html.get('tags'):
+                        top_tags = sorted(html['tags'].items(), key=lambda x: x[1], reverse=True)[:5]
+                        content += f"  - Top tags: {', '.join([f'{tag}({count})' for tag, count in top_tags])}\n"
+            
+            # CSS Stylesheets
+            if css_files:
+                content += f"\n### Stylesheets ({len(css_files)})\n\n"
+                for css in sorted(css_files, key=lambda x: x['path']):
+                    content += f"- **{css['path']}** ({css.get('lines', 0)} lines, {css.get('total_rules', 0)} rules)\n"
+            
+            # JavaScript Files
+            if js_files:
+                content += f"\n### JavaScript ({len(js_files)})\n\n"
+                for js in sorted(js_files, key=lambda x: x['path']):
+                    functions = len(js.get('functions', []))
+                    content += f"- **{js['path']}** ({js.get('lines', 0)} lines, {functions} functions)\n"
+        
+        else:
+            content += "*No web files detected in the project.*\n"
+        
+        content += """
+
+## User Interface Flow
+
+*The navigation flow and user experience paths are defined through the JSP includes, forwards, and HTML linking structure documented above.*
+
+## API Endpoints
+
+*REST API endpoints and web service interfaces would be documented here based on the backend implementation.*
+
+---
+
+[← Classes](./classes.md) | [Back to Overview](./index.md)
+"""
+        
+        web_path = os.path.join(self.docs_dir, 'web.md')
+        with open(web_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        return web_path
+    
+    def _generate_consolidated_html(self, generated_files: Dict, metadata: Dict) -> str:
+        """Generate consolidated HTML documentation."""
         
         html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Codebase Documentation</title>
+    <title>Project Documentation</title>
     <style>
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background: #f8f9fa; }}
-        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-        h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
-        h2 {{ color: #34495e; border-bottom: 1px solid #ecf0f1; padding-bottom: 8px; margin-top: 30px; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; margin: 0; padding: 0; background: #f8f9fa; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; box-shadow: 0 0 20px rgba(0,0,0,0.1); }}
+        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; }}
+        .nav {{ background: #343a40; padding: 15px; text-align: center; }}
+        .nav a {{ color: white; text-decoration: none; margin: 0 15px; padding: 8px 16px; border-radius: 4px; display: inline-block; }}
+        .nav a:hover {{ background: #495057; }}
+        .content {{ padding: 40px; }}
+        .section {{ margin-bottom: 40px; padding-bottom: 30px; border-bottom: 1px solid #dee2e6; }}
+        .section:last-child {{ border-bottom: none; }}
+        h1 {{ color: #2c3e50; margin-bottom: 20px; }}
+        h2 {{ color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
         h3 {{ color: #7f8c8d; }}
         .stats {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0; }}
-        .stat-card {{ background: #ecf0f1; padding: 20px; border-radius: 6px; text-align: center; }}
+        .stat-card {{ background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; border-left: 4px solid #3498db; }}
         .stat-number {{ font-size: 2em; font-weight: bold; color: #3498db; }}
-        .lang-breakdown {{ display: flex; flex-wrap: wrap; gap: 10px; margin: 15px 0; }}
-        .lang-tag {{ background: #3498db; color: white; padding: 5px 12px; border-radius: 15px; font-size: 0.9em; }}
-        .file-analysis {{ margin-top: 30px; }}
-        .file-item {{ background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #3498db; }}
-        .file-path {{ font-weight: bold; color: #2c3e50; }}
-        .file-meta {{ color: #7f8c8d; font-size: 0.9em; margin: 5px 0; }}
-        .summary {{ background: #e8f4fd; padding: 10px; border-radius: 4px; margin-top: 10px; }}
-        .graph-container {{ margin: 30px 0; text-align: center; }}
-        pre {{ background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 4px; overflow-x: auto; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background: #f8f9fa; font-weight: bold; }}
+        code {{ background: #f1f3f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }}
+        pre {{ background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 6px; overflow-x: auto; }}
+        .toc {{ background: #e9ecef; padding: 20px; border-radius: 6px; margin-bottom: 30px; }}
+        .toc ul {{ list-style-type: none; padding-left: 0; }}
+        .toc li {{ margin: 8px 0; }}
+        .toc a {{ text-decoration: none; color: #495057; }}
+        .toc a:hover {{ color: #007bff; }}
     </style>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🔍 Codebase Documentation</h1>
-        <p><strong>Generated on:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-        
-        <h2>📊 Project Overview</h2>
-        <div class="summary">
-            {llm_summaries.get('codebase_summary', 'No summary available')}
+        <div class="header">
+            <h1>Project Documentation</h1>
+            <p>Comprehensive codebase analysis and documentation</p>
+            <p><small>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</small></p>
         </div>
         
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number">{metadata['total_files']}</div>
-                <div>Total Files</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{metadata['total_lines']:,}</div>
-                <div>Lines of Code</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{len(metadata['language_stats'])}</div>
-                <div>Languages</div>
-            </div>
+        <div class="nav">
+            <a href="#overview">Overview</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#database">Database</a>
+            <a href="#classes">Classes</a>
+            <a href="#web">Web Interface</a>
         </div>
         
-        <h3>Language Breakdown</h3>
-        <div class="lang-breakdown">
+        <div class="content">
 """
         
-        for lang, stats in metadata['language_stats'].items():
-            html_content += f'<div class="lang-tag">{lang.title()}: {stats["files"]} files</div>'
-        
-        html_content += f"""
-        </div>
-        
-        <h2>🏗️ Architectural Insights</h2>
-        <div class="summary">
-            {llm_summaries.get('architectural_insights', 'No insights available')}
-        </div>
-        
-        <h2>🕸️ Dependency Analysis</h2>
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-number">{graph_stats.get('total_nodes', 0)}</div>
-                <div>Modules</div>
+        # Add table of contents
+        html_content += """
+            <div class="toc">
+                <h3>Table of Contents</h3>
+                <ul>
+                    <li><a href="#overview">📊 Project Overview</a></li>
+                    <li><a href="#architecture">🏗️ System Architecture</a></li>
+                    <li><a href="#database">🗄️ Database Design</a></li>
+                    <li><a href="#classes">🏷️ Classes & Objects</a></li>
+                    <li><a href="#web">🌐 Web Interface</a></li>
+                </ul>
             </div>
-            <div class="stat-card">
-                <div class="stat-number">{graph_stats.get('total_edges', 0)}</div>
-                <div>Dependencies</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">{graph_stats.get('density', 0):.3f}</div>
-                <div>Graph Density</div>
-            </div>
-        </div>
-        
-        {f'<div class="graph-container"><h3>Dependency Graph</h3>{graph_embed}</div>' if graph_embed else ''}
-        
-        <h2>📁 File Analysis</h2>
-        <div class="file-analysis">
 """
         
-        # Group files by language
-        files_by_lang = {}
-        for file_data in metadata['files']:
-            lang = file_data['language']
-            if lang not in files_by_lang:
-                files_by_lang[lang] = []
-            files_by_lang[lang].append(file_data)
+        # Convert each markdown file to HTML section
+        sections = [
+            ('overview', 'Project Overview', 'index'),
+            ('architecture', 'System Architecture', 'architecture'),
+            ('database', 'Database Design', 'database'),
+            ('classes', 'Classes & Objects', 'classes'),
+            ('web', 'Web Interface', 'web')
+        ]
         
-        for lang, files in files_by_lang.items():
-            html_content += f'<h3>{lang.title()} Files ({len(files)})</h3>'
-            
-            # Show top 10 files per language
-            for file_data in files[:10]:
-                path = file_data['path']
+        for section_id, section_title, file_key in sections:
+            file_path = generated_files.get(file_key)
+            if file_path and os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    md_content = f.read()
+                
+                # Convert markdown to HTML (basic conversion)
+                html_section = self._markdown_to_html(md_content)
+                
                 html_content += f"""
-                <div class="file-item">
-                    <div class="file-path">{path}</div>
-                    <div class="file-meta">
-                        Lines: {file_data['lines']} | 
-                        Functions: {len(file_data.get('functions', []))} | 
-                        Classes: {len(file_data.get('classes', []))} | 
-                        Imports: {len(file_data.get('imports', []))}
-                    </div>
+            <div class="section" id="{section_id}">
+                <h1>{section_title}</h1>
+                {html_section}
+            </div>
 """
-                
-                # Add LLM summary if available
-                file_summary = llm_summaries.get('file_summaries', {}).get(path)
-                if file_summary:
-                    html_content += f'<div class="summary">{file_summary}</div>'
-                
-                html_content += "</div>"
-            
-            if len(files) > 10:
-                html_content += f'<p><em>... and {len(files) - 10} more {lang} files</em></p>'
         
         html_content += """
         </div>
@@ -269,4 +536,238 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 </body>
 </html>"""
         
-        return html_content
+        html_path = os.path.join(self.output_dir, 'documentation.html')
+        with open(html_path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        return html_path
+    
+    def _generate_consolidated_pdf(self, generated_files: Dict, metadata: Dict) -> str:
+        """Generate PDF from documentation using ReportLab."""
+        pdf_path = os.path.join(self.output_dir, 'documentation.pdf')
+        
+        try:
+            # Create PDF document
+            doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+            styles = getSampleStyleSheet()
+            
+            # Custom styles
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Title'],
+                fontSize=24,
+                spaceAfter=30,
+                textColor=colors.HexColor('#2c3e50')
+            )
+            
+            heading_style = ParagraphStyle(
+                'CustomHeading',
+                parent=styles['Heading1'],
+                fontSize=18,
+                spaceAfter=12,
+                textColor=colors.HexColor('#34495e')
+            )
+            
+            subheading_style = ParagraphStyle(
+                'CustomSubHeading',
+                parent=styles['Heading2'],
+                fontSize=14,
+                spaceAfter=6,
+                textColor=colors.HexColor('#7f8c8d')
+            )
+            
+            # Build PDF content
+            story = []
+            
+            # Title page
+            story.append(Paragraph("Project Documentation", title_style))
+            story.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+            story.append(Spacer(1, 0.5*inch))
+            
+            # Project statistics table
+            stats_data = [
+                ['Metric', 'Value'],
+                ['Total Files', str(metadata['total_files'])],
+                ['Total Lines of Code', f"{metadata['total_lines']:,}"],
+                ['Languages Used', str(len(metadata['language_stats']))]
+            ]
+            
+            stats_table = Table(stats_data)
+            stats_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f8f9fa')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(Paragraph("Project Statistics", heading_style))
+            story.append(stats_table)
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Language breakdown
+            story.append(Paragraph("Technology Stack", heading_style))
+            for lang, stats in metadata['language_stats'].items():
+                percentage = (stats['lines'] / metadata['total_lines'] * 100) if metadata['total_lines'] > 0 else 0
+                story.append(Paragraph(
+                    f"<b>{lang.title()}:</b> {stats['files']} files, {stats['lines']:,} lines ({percentage:.1f}%)",
+                    styles['Normal']
+                ))
+            
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Add content from each section
+            sections = [
+                ('Overview', 'index'),
+                ('Architecture', 'architecture'),
+                ('Database', 'database'),
+                ('Classes', 'classes'),
+                ('Web Interface', 'web')
+            ]
+            
+            for section_title, file_key in sections:
+                file_path = generated_files.get(file_key)
+                if file_path and os.path.exists(file_path):
+                    story.append(Paragraph(section_title, heading_style))
+                    
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            md_content = f.read()
+                        
+                        # Convert markdown content to paragraphs
+                        paragraphs = self._markdown_to_pdf_paragraphs(md_content, styles)
+                        story.extend(paragraphs)
+                        
+                    except Exception as e:
+                        story.append(Paragraph(f"Error reading {section_title}: {str(e)}", styles['Normal']))
+                    
+                    story.append(Spacer(1, 0.3*inch))
+            
+            # Build PDF
+            doc.build(story)
+            return pdf_path
+            
+        except Exception as e:
+            print(f"Warning: PDF generation with ReportLab failed: {e}")
+            return None
+    
+    def _markdown_to_html(self, md_content: str) -> str:
+        """Convert markdown to HTML (basic implementation)."""
+        try:
+            return markdown.markdown(md_content, extensions=['tables', 'fenced_code'])
+        except:
+            # Fallback: basic conversion
+            html = md_content
+            # Convert headers
+            html = re.sub(r'^### (.*)', r'<h3>\1</h3>', html, flags=re.MULTILINE)
+            html = re.sub(r'^## (.*)', r'<h2>\1</h2>', html, flags=re.MULTILINE)
+            html = re.sub(r'^# (.*)', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+            
+            # Convert tables (basic)
+            html = re.sub(r'\|(.+)\|', r'<tr><td>\1</td></tr>', html)
+            
+            # Convert paragraphs
+            html = html.replace('\n\n', '</p><p>')
+            html = '<p>' + html + '</p>'
+            
+            # Convert code blocks
+            html = re.sub(r'`([^`]+)`', r'<code>\1</code>', html)
+            
+            return html
+    
+    def _markdown_to_pdf_paragraphs(self, md_content: str, styles):
+        """Convert markdown content to ReportLab paragraphs."""
+        paragraphs = []
+        lines = md_content.split('\n')
+        
+        current_paragraph = []
+        in_table = False
+        
+        for line in lines:
+            line = line.strip()
+            
+            if not line:
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                continue
+            
+            # Handle headers
+            if line.startswith('### '):
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                paragraphs.append(Paragraph(line[4:], styles['Heading3']))
+                continue
+            elif line.startswith('## '):
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                paragraphs.append(Paragraph(line[3:], styles['Heading2']))
+                continue
+            elif line.startswith('# '):
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                paragraphs.append(Paragraph(line[2:], styles['Heading1']))
+                continue
+            
+            # Handle tables (simplified)
+            if '|' in line and not in_table:
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                in_table = True
+                # Add table as simple text for now
+                paragraphs.append(Paragraph(line.replace('|', ' | '), styles['Normal']))
+                continue
+            elif '|' in line and in_table:
+                paragraphs.append(Paragraph(line.replace('|', ' | '), styles['Normal']))
+                continue
+            elif in_table and not '|' in line:
+                in_table = False
+            
+            # Handle bullet points
+            if line.startswith('- ') or line.startswith('* '):
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                paragraphs.append(Paragraph(line[2:], styles['Normal']))
+                continue
+            
+            # Handle code blocks (simple)
+            if line.startswith('```'):
+                if current_paragraph:
+                    paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+                    current_paragraph = []
+                continue
+            
+            # Regular text
+            current_paragraph.append(line)
+        
+        # Add any remaining paragraph
+        if current_paragraph:
+            paragraphs.append(Paragraph(' '.join(current_paragraph), styles['Normal']))
+        
+        return paragraphs
+    
+    def _infer_sql_purpose(self, file_path: str) -> str:
+        """Infer the purpose of SQL file based on name."""
+        path_lower = file_path.lower()
+        if 'create' in path_lower or 'schema' in path_lower:
+            return "Table creation/schema"
+        elif 'insert' in path_lower or 'data' in path_lower:
+            return "Data insertion"
+        elif 'update' in path_lower:
+            return "Data updates"
+        elif 'proc' in path_lower or 'function' in path_lower:
+            return "Stored procedures"
+        elif 'view' in path_lower:
+            return "Database views"
+        elif 'trigger' in path_lower:
+            return "Database triggers"
+        else:
+            return "General SQL script"
