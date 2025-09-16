@@ -32,7 +32,7 @@ class LLMClient:
         self.model = model
 
     def generate_structured_documentation(self, metadata: Dict, graph_stats: Dict) -> Dict:
-        """Generate structured documentation sections."""
+        """Generate comprehensive structured documentation sections."""
         return {
             'overview': self._generate_overview(metadata),
             'architecture': self._generate_architecture(metadata, graph_stats),
@@ -42,384 +42,748 @@ class LLMClient:
         }
     
     def _generate_overview(self, metadata: Dict) -> str:
-        """Generate overview documentation."""
+        """Generate comprehensive overview documentation."""
+        
+        # Analyze project characteristics
+        languages = list(metadata['language_stats'].keys())
+        project_structure = metadata.get('project_structure', {})
+        
+        # Determine project type and tech stack
+        project_type = self._determine_project_type(metadata)
+        tech_stack = self._analyze_tech_stack(metadata)
+        
         prompt = f"""
         {DOC_PROMPT}
         
-        Generate a comprehensive OVERVIEW section for this project:
+        Generate a comprehensive PROJECT OVERVIEW section for this {project_type} project:
         
-        Project Statistics:
+        ## Project Analysis:
         - Total Files: {metadata['total_files']}
-        - Total Lines: {metadata['total_lines']}
-        - Languages: {list(metadata['language_stats'].keys())}
+        - Total Lines: {metadata['total_lines']:,}
+        - Languages: {languages}
+        - Project Type: {project_type}
         
-        Language Distribution:
+        ## Language Distribution:
         {json.dumps(metadata['language_stats'], indent=2)}
         
-        Project Structure:
-        - Web Files: {len(metadata.get('project_structure', {}).get('web_files', []))}
-        - Backend Files: {len(metadata.get('project_structure', {}).get('backend_files', []))}
-        - Database Files: {len(metadata.get('project_structure', {}).get('database_files', []))}
-        - Config Files: {len(metadata.get('project_structure', {}).get('config_files', []))}
-        - Test Files: {len(metadata.get('project_structure', {}).get('test_files', []))}
-        - Documentation Files: {len(metadata.get('project_structure', {}).get('documentation_files', []))}
+        ## Project Structure Analysis:
+        - Web Files: {len(project_structure.get('web_files', []))}
+        - Backend Files: {len(project_structure.get('backend_files', []))}
+        - Database Files: {len(project_structure.get('database_files', []))}
+        - Config Files: {len(project_structure.get('config_files', []))}
+        - Test Files: {len(project_structure.get('test_files', []))}
+        
+        ## Technology Stack Detected:
+        {json.dumps(tech_stack, indent=2)}
         
         Create a detailed overview that includes:
-        1. Project purpose and domain (what this application does)
-        2. Technology stack explanation (languages, frameworks, tools used)
-        3. Tools and frameworks identified in the codebase
-        4. Project layout and organization (how files and folders are structured)
-        5. How different components work together (system integration)
-        6. Development approach and methodology evident from structure
-        7. Links and navigation to other documentation sections
         
-        Write in a way that both developers and non-technical stakeholders can understand.
-        Provide detailed explanations with examples where applicable, not just one-liner descriptions.
+        ## Purpose
+        - What this application does (infer from structure and files)
+        - Target audience (developers, end users, businesses)
+        - Problem it solves
+        - Key business value
+        
+        ## Target Audience
+        ### For [User Type] (Non-Technical Users)
+        - Specific user roles and their needs
+        - How they interact with the system
+        - Benefits for each user type
+        
+        ### For Developers  
+        - Technical audience segments
+        - Development team roles
+        - Technical benefits and features
+        
+        ## Key Features
+        Based on the codebase structure, identify and list the main features with:
+        - Feature descriptions
+        - Technical implementation
+        - User benefits
+        - Use icons/emojis where appropriate
+        
+        ## Technology Stack
+        ### Frontend Technologies
+        - Detailed breakdown of frontend tech
+        - Versions where detectable
+        - Purpose of each technology
+        
+        ### Backend Technologies  
+        - Backend framework analysis
+        - Database technologies
+        - API frameworks
+        
+        ### Development Tools
+        - Build tools and bundlers
+        - Testing frameworks
+        - CI/CD tools (if detectable)
+        
+        ## Project Structure
+        Create a detailed directory tree showing:
+        ```
+        project/
+        ├── feature-directories/
+        ├── core-directories/
+        └── supporting-files/
+        ```
+        
+        ## Getting Started
+        Based on the project structure, provide:
+        1. Installation steps
+        2. Environment setup
+        3. Running the application
+        4. Key commands
+        
+        ## Documentation Sections
+        - Link to other documentation with descriptions
+        - What each section covers
+        - Who should read each section
+        
+        Write in the professional style shown in the examples, with detailed explanations, proper formatting, and both technical depth and business clarity.
         """
         
         return self._call_llm(prompt)
     
     def _generate_architecture(self, metadata: Dict, graph_stats: Dict) -> str:
-        """Generate architecture documentation."""
+        """Generate comprehensive architecture documentation with detailed diagrams."""
         
-        # Extract architectural insights from file structure
-        web_files = metadata.get('project_structure', {}).get('web_files', [])
-        backend_files = metadata.get('project_structure', {}).get('backend_files', [])
-        db_files = metadata.get('project_structure', {}).get('database_files', [])
-        config_files = metadata.get('project_structure', {}).get('config_files', [])
-        
-        # Analyze JSP and web structure
-        jsp_files = [f for f in web_files if f['language'] == 'jsp']
-        java_files = [f for f in backend_files if f['language'] == 'java']
+        # Deep analysis of architecture patterns
+        arch_patterns = self._analyze_architecture_patterns(metadata)
+        component_analysis = self._analyze_component_relationships(metadata)
+        data_flow = self._analyze_data_flow_patterns(metadata)
         
         prompt = f"""
         {DOC_PROMPT}
         
-        Generate a comprehensive ARCHITECTURE section for this project:
+        Generate comprehensive SYSTEM ARCHITECTURE documentation for this project:
         
-        System Statistics:
+        ## Architectural Analysis:
+        {json.dumps(arch_patterns, indent=2)}
+        
+        ## Component Relationships:
+        {json.dumps(component_analysis, indent=2)}
+        
+        ## Data Flow Patterns:
+        {json.dumps(data_flow, indent=2)}
+        
+        ## System Statistics:
         - Total Modules: {graph_stats.get('total_nodes', 0)}
         - Dependencies: {graph_stats.get('total_edges', 0)}
         - Graph Density: {graph_stats.get('density', 0):.3f}
-        - Is Connected: {graph_stats.get('is_connected', False)}
-        
-        Component Analysis:
-        - Web Components: {len(web_files)} files (JSP: {len(jsp_files)}, HTML/CSS/JS: {len(web_files) - len(jsp_files)})
-        - Backend Components: {len(backend_files)} files (Java: {len(java_files)})
-        - Database Components: {len(db_files)} files
-        - Configuration Files: {len(config_files)} files
-        
-        Key Files Identified:
-        Top Web Files: {[f['path'] for f in sorted(web_files, key=lambda x: x.get('lines', 0), reverse=True)][:5]}
-        Top Backend Files: {[f['path'] for f in sorted(backend_files, key=lambda x: x.get('lines', 0), reverse=True)][:5]}
+        - Connectivity: {graph_stats.get('is_connected', False)}
+        - Complexity: {graph_stats.get('graph_complexity', 'Unknown')}
         
         Create detailed architecture documentation that includes:
-        1. **System Architecture Overview**: What type of application this is (web app, enterprise system, etc.)
-        2. **Architectural Patterns**: MVC, layered architecture, or other patterns identified
-        3. **Component Relationships**: How web, business, and data layers interact
-        4. **Technology Layers**: 
-           - Presentation layer (JSP, HTML, CSS, JavaScript)
-           - Business logic layer (Java classes, services)
-           - Data access layer (database connections, DAOs)
-        5. **Data Flow**: How information flows through the system
-        6. **Integration Points**: APIs, databases, external services
-        7. **Deployment Architecture**: How components are organized for deployment
-        8. **Flow Diagrams** (textual description): Step-by-step process flows
-        9. **Scalability Considerations**: How the architecture supports growth
-        10. **Security Architecture**: Authentication, authorization patterns
         
-        Explain technical concepts in plain English for non-technical readers while maintaining depth for developers.
-        Provide specific examples from the codebase structure where possible.
+        ## High-Level Overview
+        - Architectural style and patterns used
+        - Key design principles
+        - Overall system approach
+        
+        ## Architecture Diagram
+        Create a professional Mermaid diagram showing the high-level architecture:
+        ```mermaid
+        graph TD
+            %% Create a comprehensive architecture diagram
+            %% Show all major components and their relationships
+            %% Use proper Mermaid syntax for different component types
+            %% Include data flow arrows
+            %% Group related components
+        ```
+        
+        ## Core Components
+        
+        ### 1. Presentation Layer
+        - Frontend technologies and frameworks
+        - UI component structure
+        - Client-side state management
+        - User interaction patterns
+        
+        ### 2. Business Logic Layer
+        - Application logic organization
+        - Service layer architecture
+        - Business rules implementation
+        - Processing workflows
+        
+        ### 3. Data Access Layer
+        - Database integration patterns
+        - Data persistence strategies
+        - API design and implementation
+        - Caching mechanisms
+        
+        ### 4. Infrastructure Layer
+        - Configuration management
+        - Environment handling
+        - Build and deployment
+        - External integrations
+        
+        ## Data Flow Architecture
+        Create a detailed Mermaid sequence diagram showing data flow:
+        ```mermaid
+        sequenceDiagram
+            %% Show typical user interaction flow
+            %% Include all major components
+            %% Show data transformation points
+            %% Include error handling paths
+        ```
+        
+        ## Component Breakdown
+        Detailed analysis of each major component with:
+        - Purpose and responsibility
+        - Key files and directories
+        - Dependencies and relationships
+        - Performance considerations
+        
+        ## Integration Patterns
+        - How components communicate
+        - API integration strategies
+        - Event handling patterns
+        - Error propagation
+        
+        ## Scalability Analysis
+        - Current architecture scalability
+        - Bottlenecks and limitations
+        - Scaling strategies
+        - Performance considerations
+        
+        ## Security Architecture
+        - Authentication and authorization
+        - Data protection strategies
+        - Security boundaries
+        - Vulnerability considerations
+        
+        Use professional formatting, detailed technical analysis, and comprehensive Mermaid diagrams throughout.
         """
         
         return self._call_llm(prompt)
     
     def _generate_database_docs(self, metadata: Dict) -> str:
-        """Generate database documentation."""
-        db_files = metadata.get('project_structure', {}).get('database_files', [])
+        """Generate comprehensive database documentation with ERD diagrams."""
         
-        # Extract database information from parsed files
-        tables = []
-        procedures = []
-        views = []
-        references = []
-        
-        for file_data in db_files:
-            tables.extend(file_data.get('tables', []))
-            procedures.extend(file_data.get('procedures', []))
-            # Extract foreign key references
-            for dep in file_data.get('dependencies', []):
-                if dep['type'] == 'table_reference':
-                    references.append(dep['name'])
-        
-        # Analyze Java files for database patterns (DAO, Entity classes)
-        backend_files = metadata.get('project_structure', {}).get('backend_files', [])
-        dao_classes = []
-        entity_classes = []
-        
-        for file_data in backend_files:
-            if file_data['language'] == 'java':
-                for cls in file_data.get('classes', []):
-                    class_name = cls['name'].lower()
-                    if 'dao' in class_name or 'repository' in class_name:
-                        dao_classes.append(cls['name'])
-                    elif 'entity' in class_name or 'model' in class_name:
-                        entity_classes.append(cls['name'])
+        db_analysis = self._analyze_database_structure(metadata)
         
         prompt = f"""
         {DOC_PROMPT}
         
         Generate comprehensive DATABASE documentation for this project:
         
-        Database Files Analysis:
-        - SQL Files Found: {len(db_files)}
-        - Tables Identified: {[t['name'] for t in tables[:10]]} {'...' if len(tables) > 10 else ''}
-        - Stored Procedures: {[p['name'] for p in procedures[:10]]} {'...' if len(procedures) > 10 else ''}
-        - Foreign Key References: {list(set(references))[:10]} {'...' if len(set(references)) > 10 else ''}
-        
-        Database Integration Patterns:
-        - DAO Classes Found: {dao_classes[:10]} {'...' if len(dao_classes) > 10 else ''}
-        - Entity/Model Classes: {entity_classes[:10]} {'...' if len(entity_classes) > 10 else ''}
-        
-        SQL Files Details:
-        {json.dumps([{
-            'path': f['path'], 
-            'lines': f['lines'],
-            'tables': len(f.get('tables', [])),
-            'procedures': len(f.get('procedures', []))
-        } for f in db_files[:10]], indent=2)}
+        ## Database Analysis:
+        {json.dumps(db_analysis, indent=2)}
         
         Create detailed database documentation that includes:
-        1. **Database System Overview**: What database systems are supported (MySQL, PostgreSQL, Oracle, etc.)
-        2. **Database Schema Architecture**: Overall database design approach
-        3. **Entity Relationship Diagram (ERD)** (textual description): 
-           - Main entities and their relationships
-           - Primary and foreign key relationships
-           - Cardinality between tables
-        4. **Table Descriptions**: Purpose and structure of each major table
-        5. **Stored Procedures and Functions**: Business logic implemented in database
-        6. **Data Access Patterns**: How the application connects to and uses the database
-        7. **Database Integration**: Connection pooling, transaction management
-        8. **Data Flow**: How data moves through the database layers
-        9. **Performance Considerations**: Indexing, optimization strategies
-        10. **Database Setup and Configuration**: Installation and setup requirements
-        11. **Data Integrity**: Constraints, triggers, validation rules
         
-        Provide both technical details for developers and conceptual explanations for non-technical users.
-        Include specific examples from the identified tables and procedures.
+        ## Database Platform
+        - Database technology used
+        - Version and features
+        - Key capabilities
+        - Integration approach
+        
+        ## Entity-Relationship Diagram
+        Create a comprehensive Mermaid ERD:
+        ```mermaid
+        erDiagram
+            %% Define all entities with their attributes
+            %% Show relationships between entities
+            %% Include cardinality indicators
+            %% Use proper ERD notation
+        ```
+        
+        ## Table Descriptions
+        For each identified table:
+        
+        ### [Table Name]
+        Brief description of table purpose
+        
+        #### Fields
+        | Field | Type | Description | Constraints |
+        |-------|------|-------------|-------------|
+        
+        #### Example
+        ```sql
+        CREATE TABLE example (
+            -- Actual SQL based on analysis
+        );
+        ```
+        
+        ## Database Relations
+        
+        ### One-to-Many Relations
+        - Detailed relationship descriptions
+        - Business logic behind relationships
+        - Data integrity considerations
+        
+        ### Many-to-Many Relations
+        - Junction table analysis
+        - Complex relationship handling
+        - Performance implications
+        
+        ## Data Access Patterns
+        - How the application interacts with data
+        - Query patterns and optimization
+        - Connection management
+        - Transaction handling
+        
+        ## Database Migrations
+        - Schema evolution strategy
+        - Migration management
+        - Version control integration
+        - Rollback procedures
+        
+        ## Performance Considerations
+        - Indexing strategies
+        - Query optimization
+        - Connection pooling
+        - Caching approaches
+        
+        ## Data Security
+        - Access control mechanisms
+        - Data encryption
+        - Audit trails
+        - Backup and recovery
+        
+        Include real SQL examples where possible and professional database design analysis.
         """
         
         return self._call_llm(prompt)
     
     def _generate_class_docs(self, metadata: Dict) -> str:
-        """Generate class documentation."""
+        """Generate comprehensive class/component documentation with UML diagrams."""
         
-        # Collect comprehensive class information
-        all_classes = []
-        all_functions = []
-        classes_by_file = {}
-        
-        for file_data in metadata['files']:
-            if file_data.get('classes'):
-                classes_by_file[file_data['path']] = file_data['classes']
-                for cls in file_data['classes']:
-                    cls_info = cls.copy()
-                    cls_info['file'] = file_data['path']
-                    cls_info['language'] = file_data['language']
-                    all_classes.append(cls_info)
-            
-            all_functions.extend(file_data.get('functions', []))
-        
-        # Group by language and analyze patterns
-        classes_by_lang = {}
-        design_patterns = {
-            'dao': [], 'service': [], 'controller': [], 'model': [], 'entity': [],
-            'factory': [], 'singleton': [], 'builder': [], 'adapter': []
-        }
-        
-        for cls in all_classes:
-            lang = cls['language']
-            if lang not in classes_by_lang:
-                classes_by_lang[lang] = []
-            classes_by_lang[lang].append(cls)
-            
-            # Detect design patterns from class names
-            class_name_lower = cls['name'].lower()
-            for pattern in design_patterns:
-                if pattern in class_name_lower:
-                    design_patterns[pattern].append(cls['name'])
+        class_analysis = self._analyze_class_structure(metadata)
         
         prompt = f"""
         {DOC_PROMPT}
         
-        Generate comprehensive CLASS documentation for this project:
+        Generate comprehensive CLASSES/COMPONENTS documentation for this project:
         
-        Object-Oriented Analysis:
-        - Total Classes Found: {len(all_classes)}
-        - Total Functions/Methods: {len(all_functions)}
-        - Languages with Classes: {list(classes_by_lang.keys())}
+        ## Class Structure Analysis:
+        {json.dumps(class_analysis, indent=2)}
         
-        Classes by Language:
-        {json.dumps({lang: [cls['name'] for cls in classes] for lang, classes in classes_by_lang.items()}, indent=2)}
+        Create detailed component documentation that includes:
         
-        Design Patterns Detected:
-        {json.dumps({pattern: classes for pattern, classes in design_patterns.items() if classes}, indent=2)}
+        ## Component Hierarchy
+        Create a comprehensive Mermaid diagram showing component relationships:
+        ```mermaid
+        classDiagram
+            %% Define all major classes/components
+            %% Show inheritance relationships
+            %% Include composition relationships
+            %% Show method signatures where relevant
+        ```
         
-        Key Classes (with methods):
-        {json.dumps([{
-            'name': cls['name'],
-            'file': cls['file'],
-            'methods': cls.get('methods', []),
-            'docstring': cls.get('docstring', '')[:100] + '...' if cls.get('docstring', '') else 'No documentation'
-        } for cls in all_classes[:15]], indent=2)}
+        ## Core Components
         
-        Create detailed class documentation that includes:
-        1. **Object-Oriented Design Overview**: How OOP principles are applied in this project
-        2. **Class Hierarchy and Relationships**: Inheritance trees and composition patterns
-        3. **UML Diagram Explanation** (textual representation):
-           - Class relationships (inheritance, composition, aggregation)
-           - Method signatures and responsibilities
-           - Dependencies between classes
-        4. **Key Classes and Their Responsibilities**:
-           - Core business classes
-           - Data access objects (DAOs)
-           - Service/Controller classes
-           - Model/Entity classes
-        5. **Design Patterns Used**:
-           - Factory, Singleton, Observer, MVC patterns
-           - How patterns are implemented
-        6. **Method Analysis**: Key methods and their purposes
-        7. **Inheritance and Composition**: How classes relate to each other
-        8. **Interface Design**: Abstraction and contract definitions
-        9. **Package Organization**: How classes are organized into packages/modules
-        10. **Plain English Explanation**: Object-oriented concepts explained simply
-        11. **Code Examples**: Illustrative examples of class usage patterns
+        ### 1. [Component Category]
         
-        Make complex OOP concepts understandable for both technical and non-technical audiences.
-        Provide specific examples from the identified classes and their actual methods.
+        #### `ComponentName` Component
+        Location: `path/to/component`
+        ```mermaid
+        classDiagram
+            class ComponentName 
+                +State property: type
+                +Prop property: type
+                +Function method()
+                +Render() JSX
+            
+        ```
+        **Purpose**: Detailed description of component purpose
+        **Key Features**:
+        - Feature 1 with explanation
+        - Feature 2 with explanation
+        - Integration points
+        
+        ## Custom Hooks (if applicable)
+        
+        ### [Hook Category]
+        
+        #### `useHookName` Hook
+        Location: `path/to/hook`
+        ```javascript
+        const useHookName = (parameters) => 
+            // Show actual hook implementation structure
+            return returnValues ;
+        ```
+        **Purpose**: Detailed hook explanation
+        **Usage**: How and when to use this hook
+        **Returns**: What the hook returns and how to use it
+        
+        ## Utility Functions
+        
+        ### [Utility Category]
+        Location: `path/to/utils`
+        ```javascript
+        export const utilityFunction = (params) => 
+            // Show actual utility structure
+        ;
+        ```
+        
+        ## Component Interaction Examples
+        
+        ### [Workflow Name]
+        ```mermaid
+        sequenceDiagram
+            %% Show how components interact
+            %% Include data flow
+            %% Show state changes
+        ```
+        
+        ## Design Patterns
+        - Pattern identification and explanation
+        - Implementation examples
+        - Benefits and trade-offs
+        - Usage guidelines
+        
+        ## State Management
+        - How state is managed across components
+        - State flow patterns
+        - Performance implications
+        - Best practices
+        
+        Include real code examples, detailed component analysis, and professional UML/component diagrams.
         """
         
         return self._call_llm(prompt)
     
     def _generate_web_docs(self, metadata: Dict) -> str:
-        """Generate web documentation with enhanced JSP support."""
-        web_files = metadata.get('project_structure', {}).get('web_files', [])
+        """Generate comprehensive web interface documentation with flow diagrams."""
         
-        # Categorize web files
-        jsp_files = [f for f in web_files if f['language'] == 'jsp']
-        html_files = [f for f in web_files if f['language'] == 'html']
-        css_files = [f for f in web_files if f['language'] == 'css']
-        js_files = [f for f in web_files if f['language'] in ['javascript', 'typescript']]
-        
-        # Analyze JSP navigation and structure
-        jsp_includes = []
-        jsp_forwards = []
-        jsp_tags = []
-        java_integration = []
-        
-        for jsp_file in jsp_files:
-            jsp_includes.extend(jsp_file.get('jsp_includes', []))
-            java_integration.extend(jsp_file.get('java_imports', []))
-            jsp_tags.extend(jsp_file.get('jsp_tags', []))
-            
-            # Extract forwards from dependencies
-            for dep in jsp_file.get('dependencies', []):
-                if dep['type'] == 'jsp_forward':
-                    jsp_forwards.append({'from': jsp_file['path'], 'to': dep['name']})
-                elif dep['type'] == 'jsp_include':
-                    jsp_includes.append({'parent': jsp_file['path'], 'include': dep['name']})
-        
-        # Analyze backend integration (look for servlet-like patterns)
-        backend_files = metadata.get('project_structure', {}).get('backend_files', [])
-        servlet_classes = []
-        controller_classes = []
-        
-        for file_data in backend_files:
-            if file_data['language'] == 'java':
-                for cls in file_data.get('classes', []):
-                    class_name = cls['name'].lower()
-                    if 'servlet' in class_name:
-                        servlet_classes.append(cls['name'])
-                    elif 'controller' in class_name:
-                        controller_classes.append(cls['name'])
+        web_analysis = self._analyze_web_structure(metadata)
         
         prompt = f"""
         {DOC_PROMPT}
         
-        Generate comprehensive WEB documentation for this project:
+        Generate comprehensive WEB INTERFACE documentation for this project:
         
-        Web Technology Stack:
-        - JSP Files: {len(jsp_files)}
-        - HTML Files: {len(html_files)}
-        - CSS Files: {len(css_files)}
-        - JavaScript Files: {len(js_files)}
-        
-        JSP Application Analysis:
-        - JSP Pages: {[f['path'] for f in jsp_files[:10]]} {'...' if len(jsp_files) > 10 else ''}
-        - Common Includes: {list(set([inc.get('include', inc) for inc in jsp_includes[:10]]))} {'...' if len(jsp_includes) > 10 else ''}
-        - Page Forwards: {[fwd['to'] for fwd in jsp_forwards[:10]]} {'...' if len(jsp_forwards) > 10 else ''}
-        - JSP Custom Tags: {list(set(jsp_tags))[:10]} {'...' if len(jsp_tags) > 10 else ''}
-        
-        Backend Integration:
-        - Servlet Classes: {servlet_classes[:10]} {'...' if len(servlet_classes) > 10 else ''}
-        - Controller Classes: {controller_classes[:10]} {'...' if len(controller_classes) > 10 else ''}
-        - Java Integration: {list(set(java_integration))[:10]} {'...' if len(java_integration) > 10 else ''}
-        
-        Web File Structure:
-        {json.dumps([{
-            'path': f['path'], 
-            'language': f['language'], 
-            'lines': f['lines'],
-            'includes': len(f.get('jsp_includes', [])) if f['language'] == 'jsp' else 0
-        } for f in web_files[:15]], indent=2)}
+        ## Web Structure Analysis:
+        {json.dumps(web_analysis, indent=2)}
         
         Create detailed web documentation that includes:
-        1. **Web Application Structure**: Overall web architecture (JSP-based web application)
-        2. **User Interface Components**:
-           - JSP pages and their purposes
-           - HTML templates and layouts
-           - CSS styling and themes
-           - JavaScript functionality
-        3. **Navigation Flow and Routing**:
-           - Page-to-page navigation
-           - JSP forwards and includes
-           - URL mapping and routing patterns
-        4. **JSP Application Patterns**:
-           - Model-View-Controller implementation
-           - JSP tag libraries and custom tags
-           - JavaBean integration
-           - Session management
-        5. **REST API Endpoints** (if identified):
-           - Servlet mappings
-           - Request/Response patterns
-           - API documentation
-        6. **Frontend-Backend Integration**:
-           - How JSP pages connect to Java backend
-           - Data binding and form handling
-           - Ajax and dynamic content
-        7. **User Experience Flow**:
-           - User journey through the application
-           - Form workflows
-           - Error handling and validation
-        8. **Security and Session Management**:
-           - Authentication patterns
-           - Session handling
-           - Input validation
-        9. **Performance Considerations**:
-           - Caching strategies
-           - Static resource management
-           - Optimization techniques
-        10. **Deployment and Configuration**:
-            - Web server requirements
-            - Deployment descriptor (web.xml) patterns
-            - Configuration management
         
-        Explain web concepts clearly for both developers and business stakeholders.
-        Provide specific examples from the JSP pages and navigation flows identified.
-        Include both technical implementation details and user-facing functionality descriptions.
+        ## Pages Structure
+        
+        ### [Page Category]
+        
+        #### [Page Name] (`/route`)
+        - **Component**: `ComponentName.jsx`
+        - **Purpose**: Page purpose and functionality
+        - **Features**:
+          - Feature list with detailed explanations
+          - User interactions supported
+          - Data displayed and managed
+        
+        ## API Endpoints
+        
+        ### [API Category]
+        Location: `services/apiFile.js`
+        
+        #### [Operation Name]
+        ```javascript
+        [HTTP_METHOD] /api/endpoint
+        Body: 
+          field: type,
+          field: type
+        
+        Response: 
+          responseStructure
+        ```
+        
+        ## Navigation Flow
+        
+        ### [Flow Name]
+        ```mermaid
+        graph TD
+            %% Create detailed navigation flow
+            %% Show user journey paths
+            %% Include decision points
+            %% Show error handling paths
+        ```
+        
+        ## Protected Routes
+        Location: `path/to/protection`
+        
+        ### Route Protection Logic
+        ```javascript
+        // Show actual route protection implementation
+        ```
+        
+        ### Protected Routes Configuration
+        ```javascript
+        // Show routing configuration
+        ```
+        
+        ## User Workflows
+        
+        ### [Workflow Name]
+        ```mermaid
+        sequenceDiagram
+            %% Show complete user workflow
+            %% Include all steps and decision points
+            %% Show system responses
+        ```
+        
+        ## Error Handling
+        
+        ### [Error Category]
+        ```javascript
+        // Show actual error handling patterns
+        ```
+        
+        ## Response Handling
+        - Success response patterns
+        - Loading state management
+        - Error state handling
+        - User feedback mechanisms
+        
+        ## Performance Optimizations
+        - Loading strategies
+        - Caching approaches
+        - Bundle optimization
+        - Runtime performance
+        
+        ## Security Measures
+        - Authentication flows
+        - Authorization patterns
+        - Input validation
+        - XSS protection
+        
+        Include comprehensive flow diagrams, real code examples, and detailed user experience analysis.
         """
         
         return self._call_llm(prompt)
+    
+    # Enhanced analysis methods
+    
+    def _determine_project_type(self, metadata: Dict) -> str:
+        """Determine the type of project based on file analysis."""
+        languages = metadata['language_stats'].keys()
+        web_files = metadata.get('project_structure', {}).get('web_files', [])
+        backend_files = metadata.get('project_structure', {}).get('backend_files', [])
+        
+        if 'javascript' in languages or 'typescript' in languages:
+            if any('react' in str(f).lower() for f in web_files):
+                return "React Web Application"
+            elif any('vue' in str(f).lower() for f in web_files):
+                return "Vue.js Web Application" 
+            elif any('angular' in str(f).lower() for f in web_files):
+                return "Angular Web Application"
+            else:
+                return "JavaScript Web Application"
+        elif 'java' in languages:
+            jsp_files = [f for f in web_files if f.get('language') == 'jsp']
+            if jsp_files:
+                return "Java Web Application (JSP/Servlet)"
+            else:
+                return "Java Enterprise Application"
+        elif 'python' in languages:
+            return "Python Web Application"
+        else:
+            return "Multi-language Application"
+    
+    def _analyze_tech_stack(self, metadata: Dict) -> Dict:
+        """Analyze and categorize the technology stack."""
+        tech_stack = {
+            'frontend': [],
+            'backend': [],
+            'database': [],
+            'tools': []
+        }
+        
+        languages = metadata['language_stats'].keys()
+        
+        # Frontend technologies
+        if 'javascript' in languages:
+            tech_stack['frontend'].append('JavaScript')
+        if 'typescript' in languages:
+            tech_stack['frontend'].append('TypeScript')
+        if 'html' in languages:
+            tech_stack['frontend'].append('HTML')
+        if 'css' in languages:
+            tech_stack['frontend'].append('CSS')
+        if 'jsx' in languages:
+            tech_stack['frontend'].append('React JSX')
+        
+        # Backend technologies
+        if 'java' in languages:
+            tech_stack['backend'].append('Java')
+        if 'python' in languages:
+            tech_stack['backend'].append('Python')
+        if 'jsp' in languages:
+            tech_stack['backend'].append('JSP (JavaServer Pages)')
+        
+        # Database technologies
+        if 'sql' in languages:
+            tech_stack['database'].append('SQL Database')
+        
+        # Configuration and tools
+        config_files = metadata.get('project_structure', {}).get('config_files', [])
+        for config_file in config_files:
+            if 'package.json' in config_file.get('path', ''):
+                tech_stack['tools'].append('npm/Node.js')
+            elif 'pom.xml' in config_file.get('path', ''):
+                tech_stack['tools'].append('Maven')
+            elif 'build.gradle' in config_file.get('path', ''):
+                tech_stack['tools'].append('Gradle')
+        
+        return tech_stack
+    
+    def _analyze_architecture_patterns(self, metadata: Dict) -> Dict:
+        """Analyze architectural patterns in the codebase."""
+        patterns = {
+            'architectural_style': 'Unknown',
+            'design_patterns': [],
+            'component_organization': 'Unknown',
+            'state_management': 'Unknown'
+        }
+        
+        # Detect common patterns
+        all_files = metadata['files']
+        file_paths = [f['path'] for f in all_files]
+        
+        # Check for MVC pattern
+        if any('controller' in path.lower() for path in file_paths):
+            patterns['design_patterns'].append('MVC (Model-View-Controller)')
+        
+        # Check for component-based architecture
+        if any('component' in path.lower() for path in file_paths):
+            patterns['architectural_style'] = 'Component-based Architecture'
+        
+        # Check for feature-based organization
+        if any('feature' in path.lower() for path in file_paths):
+            patterns['component_organization'] = 'Feature-based Organization'
+        
+        # Check for service layer
+        if any('service' in path.lower() for path in file_paths):
+            patterns['design_patterns'].append('Service Layer Pattern')
+        
+        return patterns
+    
+    def _analyze_component_relationships(self, metadata: Dict) -> Dict:
+        """Analyze relationships between components."""
+        relationships = {
+            'total_components': 0,
+            'dependency_depth': 0,
+            'coupling_analysis': 'Unknown',
+            'cohesion_analysis': 'Unknown'
+        }
+        
+        # Basic relationship analysis based on dependencies
+        total_deps = sum(len(f.get('dependencies', [])) for f in metadata['files'])
+        total_files = len(metadata['files'])
+        
+        if total_files > 0:
+            relationships['total_components'] = total_files
+            avg_deps = total_deps / total_files
+            
+            if avg_deps > 10:
+                relationships['coupling_analysis'] = 'High Coupling'
+            elif avg_deps > 5:
+                relationships['coupling_analysis'] = 'Medium Coupling'
+            else:
+                relationships['coupling_analysis'] = 'Low Coupling'
+        
+        return relationships
+    
+    def _analyze_data_flow_patterns(self, metadata: Dict) -> Dict:
+        """Analyze data flow patterns in the application."""
+        data_flow = {
+            'pattern_type': 'Unknown',
+            'state_management': 'Unknown',
+            'data_persistence': 'Unknown',
+            'api_integration': 'Unknown'
+        }
+        
+        # Analyze based on file types and patterns
+        web_files = metadata.get('project_structure', {}).get('web_files', [])
+        db_files = metadata.get('project_structure', {}).get('database_files', [])
+        
+        if web_files and db_files:
+            data_flow['pattern_type'] = 'Full-stack Application'
+            data_flow['data_persistence'] = 'Database-backed'
+        elif web_files:
+            data_flow['pattern_type'] = 'Frontend Application'
+            data_flow['api_integration'] = 'External API Integration'
+        
+        return data_flow
+    
+    def _analyze_database_structure(self, metadata: Dict) -> Dict:
+        """Analyze database structure and relationships."""
+        db_analysis = {
+            'database_type': 'Unknown',
+            'tables_identified': [],
+            'relationships': [],
+            'patterns': []
+        }
+        
+        db_files = metadata.get('project_structure', {}).get('database_files', [])
+        
+        for db_file in db_files:
+            tables = db_file.get('tables', [])
+            db_analysis['tables_identified'].extend([t['name'] for t in tables])
+            
+            # Analyze for common database patterns
+            dependencies = db_file.get('dependencies', [])
+            for dep in dependencies:
+                if dep['type'] == 'table_reference':
+                    db_analysis['relationships'].append({
+                        'type': 'Foreign Key Reference',
+                        'target': dep['name']
+                    })
+        
+        if db_files:
+            db_analysis['database_type'] = 'SQL Database'
+            
+        return db_analysis
+    
+    def _analyze_class_structure(self, metadata: Dict) -> Dict:
+        """Analyze class/component structure."""
+        class_analysis = {
+            'total_classes': 0,
+            'inheritance_chains': [],
+            'design_patterns': [],
+            'component_types': {}
+        }
+        
+        all_classes = []
+        for file_data in metadata['files']:
+            classes = file_data.get('classes', [])
+            all_classes.extend(classes)
+        
+        class_analysis['total_classes'] = len(all_classes)
+        
+        # Analyze class names for patterns
+        for cls in all_classes:
+            class_name = cls['name'].lower()
+            if 'service' in class_name:
+                class_analysis['design_patterns'].append('Service Pattern')
+            elif 'factory' in class_name:
+                class_analysis['design_patterns'].append('Factory Pattern')
+            elif 'dao' in class_name:
+                class_analysis['design_patterns'].append('Data Access Object')
+        
+        return class_analysis
+    
+    def _analyze_web_structure(self, metadata: Dict) -> Dict:
+        """Analyze web structure and patterns."""
+        web_analysis = {
+            'page_count': 0,
+            'api_endpoints': [],
+            'routing_pattern': 'Unknown',
+            'authentication': 'Unknown'
+        }
+        
+        web_files = metadata.get('project_structure', {}).get('web_files', [])
+        web_analysis['page_count'] = len(web_files)
+        
+        # Check for common web patterns
+        all_files = metadata['files']
+        for file_data in all_files:
+            file_path = file_data['path'].lower()
+            if 'route' in file_path or 'router' in file_path:
+                web_analysis['routing_pattern'] = 'Client-side Routing'
+            if 'auth' in file_path or 'login' in file_path:
+                web_analysis['authentication'] = 'Authentication System Present'
+        
+        return web_analysis
     
     def _call_llm(self, prompt: str) -> str:
         """Make LLM API call with error handling."""

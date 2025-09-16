@@ -2,9 +2,9 @@
 
 ## Class Overview
 
-**Class Documentation**
-======================
-### 1. **Object-Oriented Design
+## Classes/Components Documentation
+### Overview
+The project's class structure analysis reveals
 
 ## Class Analysis
 

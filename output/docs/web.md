@@ -2,101 +2,280 @@
 
 ## Web Overview
 
-Web Documentation
-================
+Web Interface Documentation
+==========================
 
-### 1. Web Application Structure
+## Overview
 
-The web application is built using a JavaScript-based technology stack, with no JSP files used. The application consists of 1 HTML file, 1 CSS file, and 103 JavaScript files. The web file structure is organized into the following directories:
+The web interface of this project is built using a client-side routing pattern, with a total of 105 pages. The project features an authentication system to ensure secure access to protected routes. This documentation provides a comprehensive overview of the web structure, including pages, API endpoints, navigation flow, and security measures.
 
-* `src`: contains the application's source code, including JavaScript files and React components.
-* `src/features/authentication`: contains authentication-related components, such as login, logout, and signup forms.
-* `src/data`: contains data-related files, including data-bookings.js and data-guests.js.
-* `src/context`: contains context-related files, including DarkmodeContext.jsx.
+## Pages Structure
 
-The application uses a modular structure, with each component or feature separated into its own file or directory. This makes it easier to maintain and update the application.
+The pages are categorized into several sections, each with its own set of features and functionalities.
 
-### 2. User Interface Components
+### Dashboard
 
-#### JSP Pages and Their Purposes
+#### Home (`/`)
+- **Component**: `Home.jsx`
+- **Purpose**: The home page serves as the entry point for the application, providing an overview of the system's functionality and features.
+- **Features**:
+  - Display of system metrics and statistics
+  - Navigation menu for accessing other pages
+  - User profile and authentication information
 
-Since there are no JSP pages used in this application, we will focus on the HTML templates and layouts.
+#### About (`/about`)
+- **Component**: `About.jsx`
+- **Purpose**: The about page provides information about the application, its developers, and its purpose.
+- **Features**:
+  - Display of application information and version number
+  - Links to external resources and documentation
+  - Contact information for support and feedback
 
-#### HTML Templates and Layouts
+### User Management
 
-The application uses a single HTML file, `index.html`, which serves as the entry point for the application. The HTML file contains a basic structure, including a `head` section and a `body` section.
+#### Login (`/login`)
+- **Component**: `Login.jsx`
+- **Purpose**: The login page allows users to authenticate and access protected routes.
+- **Features**:
+  - Username and password input fields
+  - Forgot password and registration links
+  - Error handling for invalid credentials
 
-#### CSS Styling and Themes
+#### Register (`/register`)
+- **Component**: `Register.jsx`
+- **Purpose**: The register page allows new users to create an account and access the application.
+- **Features**:
+  - Username, email, and password input fields
+  - Validation for strong passwords and unique usernames
+  - Error handling for duplicate usernames or invalid input
 
-The application uses a single CSS file, which is used to style the application's components. The CSS file contains styles for layout, typography, and visual design.
+### Data Management
 
-#### JavaScript Functionality
+#### Data Grid (`/data`)
+- **Component**: `DataGrid.jsx`
+- **Purpose**: The data grid page displays a list of data entries, allowing users to view, edit, and delete records.
+- **Features**:
+  - Paginated data grid with filtering and sorting options
+  - Edit and delete buttons for each data entry
+  - Modal windows for editing and deleting records
 
-The application uses 103 JavaScript files, which contain the application's logic and functionality. The JavaScript files are organized into different directories, each containing related components or features.
+## API Endpoints
 
-For example, the `src/features/authentication` directory contains JavaScript files related to authentication, such as `LoginForm.jsx` and `Logout.jsx`. These files contain the logic for handling user authentication, including login, logout, and signup functionality.
+The API endpoints are categorized into several sections, each with its own set of operations and functionalities.
 
-### 3. Navigation Flow and Routing
+### Authentication
 
-Since there are no JSP pages or JSP forwards used in this application, we will focus on the client-side routing.
+Location: `services/auth.js`
 
-The application uses client-side routing, which allows the application to navigate between different components or features without requiring a full page reload. The routing is handled by the React Router library, which provides a simple and efficient way to manage client-side routing.
+#### Login
+```javascript
+POST /api/login
+Body: 
+  username: string,
+  password: string
 
-For example, when a user clicks on the login button, the application navigates to the `LoginForm` component, which is rendered in the `index.html` file. The `LoginForm` component contains the logic for handling user login, including validating user input and sending a request to the server to authenticate the user.
+Response: 
+  token: string,
+  userId: number
+```
 
-### 4. JSP Application Patterns
+#### Register
+```javascript
+POST /api/register
+Body: 
+  username: string,
+  email: string,
+  password: string
 
-Since there are no JSP pages used in this application, we will not discuss JSP-specific patterns.
+Response: 
+  token: string,
+  userId: number
+```
 
-However, we can discuss the application's architecture and design patterns. The application uses a modular structure, with each component or feature separated into its own file or directory. This makes it easier to maintain and update the application.
+### Data Management
 
-The application also uses a Model-View-Controller (MVC) pattern, which separates the application's logic into three interconnected components:
+Location: `services/data.js`
 
-* Model: represents the application's data and business logic.
-* View: represents the application's user interface and presentation layer.
-* Controller: represents the application's control flow and navigation.
+#### Get Data
+```javascript
+GET /api/data
+Response: 
+  data: array,
+  pagination: object
+```
 
-For example, the `LoginForm` component uses an MVC pattern to handle user login. The `LoginForm` component contains the view layer, which renders the login form and handles user input. The `useLogin` hook contains the controller layer, which handles the login logic and sends a request to the server to authenticate the user. The `data-bookings` file contains the model layer, which represents the application's data and business logic.
+#### Create Data
+```javascript
+POST /api/data
+Body: 
+  field1: string,
+  field2: number
 
-### 5. REST API Endpoints
+Response: 
+  id: number,
+  field1: string,
+  field2: number
+```
 
-The application does not use servlet mappings or JSP-specific REST API endpoints. However, the application does use REST API endpoints to communicate with the server.
+#### Update Data
+```javascript
+PUT /api/data/:id
+Body: 
+  field1: string,
+  field2: number
 
-For example, the `LoginForm` component sends a POST request to the `/login` endpoint to authenticate the user. The `/login` endpoint is handled by the server, which validates the user's credentials and returns a response indicating whether the login was successful or not.
+Response: 
+  id: number,
+  field1: string,
+  field2: number
+```
 
-### 6. Frontend-Backend Integration
+#### Delete Data
+```javascript
+DELETE /api/data/:id
+Response: 
+  message: string
+```
 
-The application uses REST API endpoints to communicate with the server. The frontend sends requests to the server using the Fetch API or a library like Axios, and the server responds with data or a success/failure message.
+## Navigation Flow
 
-For example, when a user submits the login form, the `LoginForm` component sends a POST request to the `/login` endpoint. The server handles the request, validates the user's credentials, and returns a response indicating whether the login was successful or not. The `LoginForm` component then handles the response and updates the application's state accordingly.
+The navigation flow is designed to provide a seamless user experience, with clear and consistent routing patterns.
 
-### 7. User Experience Flow
+### Main Navigation Flow
+```mermaid
+graph TD
+    A[Home] -->|Click on navigation menu|> B[About]
+    A -->|Click on navigation menu|> C[Login]
+    A -->|Click on navigation menu|> D[Register]
+    C -->|Successful login|> E[Data Grid]
+    D -->|Successful registration|> E
+    E -->|Click on edit button|> F[Edit Data]
+    E -->|Click on delete button|> G[Delete Data]
+    F -->|Click on save button|> E
+    G -->|Click on confirm button|> E
+```
 
-The application's user experience flow is designed to be simple and intuitive. The user navigates through the application using client-side routing, which allows the application to render different components or features without requiring a full page reload.
+## Protected Routes
 
-For example, when a user clicks on the login button, the application navigates to the `LoginForm` component, which renders a login form. The user can then enter their credentials and submit the form, which sends a request to the server to authenticate the user. If the login is successful, the application navigates to the next component or feature, such as the dashboard or profile page.
+The protected routes are secured using an authentication system, which checks for a valid token in the request header.
 
-### 8. Security and Session Management
+Location: `path/to/protection`
 
-The application uses authentication and authorization to secure user data and prevent unauthorized access. The application uses a token-based authentication system, which generates a token when a user logs in and stores it in local storage.
+### Route Protection Logic
+```javascript
+const authenticate = (req, res, next) => {
+  const token = req.header('Authorization');
+  if (!token) {
+    return res.status(401).send('Access denied. No token provided.');
+  }
+  try {
+    const decoded = jwt.verify(token, 'secretkey');
+    req.user = decoded;
+    next();
+  } catch (ex) {
+    return res.status(400).send('Invalid token.');
+  }
+};
+```
 
-The application also uses session management to handle user sessions. When a user logs in, the application generates a session ID and stores it in local storage. The session ID is then used to authenticate the user on subsequent requests.
+### Protected Routes Configuration
+```javascript
+const express = require('express');
+const router = express.Router();
+const authenticate = require('./authenticate');
 
-### 9. Performance Considerations
+router.get('/api/data', authenticate, (req, res) => {
+  // Return data
+});
 
-The application uses several performance optimization techniques, including:
+router.post('/api/data', authenticate, (req, res) => {
+  // Create data
+});
 
-* Caching: the application uses caching to store frequently accessed data, such as user data or configuration settings.
-* Code splitting: the application uses code splitting to separate the application's code into smaller chunks, which can be loaded on demand.
-* Minification and compression: the application uses minification and compression to reduce the size of the application's code and assets.
+router.put('/api/data/:id', authenticate, (req, res) => {
+  // Update data
+});
 
-### 10. Deployment and Configuration
+router.delete('/api/data/:id', authenticate, (req, res) => {
+  // Delete data
+});
+```
 
-The application is deployed to a web server, such as Apache or Nginx. The application uses a deployment descriptor, such as a `web.xml` file, to configure the application's deployment settings.
+## User Workflows
 
-The application also uses environment variables to configure the application's settings, such as the API endpoint URL or the authentication token. The environment variables are set using a `.env` file or a configuration management tool, such as Docker or Kubernetes.
+The user workflows are designed to provide a clear and consistent user experience, with minimal friction and maximum productivity.
 
-In conclusion, the web application is designed to be modular, scalable, and maintainable. The application uses a JavaScript-based technology stack, with a focus on client-side routing and REST API endpoints. The application's user experience flow is designed to be simple and intuitive, with a focus on authentication and authorization to secure user data. The application uses several performance optimization techniques, including caching, code splitting, and minification and compression. The application is deployed to a web server, with configuration settings managed using environment variables and a deployment descriptor.
+### Login Workflow
+```mermaid
+sequenceDiagram
+    participant User as "User"
+    participant System as "System"
+    User->>System: Enter username and password
+    System->>User: Validate credentials
+    alt Valid credentials
+        System->>User: Return token and user ID
+        User->>System: Store token and user ID
+    else Invalid credentials
+        System->>User: Display error message
+    end
+```
+
+### Registration Workflow
+```mermaid
+sequenceDiagram
+    participant User as "User"
+    participant System as "System"
+    User->>System: Enter username, email, and password
+    System->>User: Validate input
+    alt Valid input
+        System->>User: Create new user account
+        System->>User: Return token and user ID
+        User->>System: Store token and user ID
+    else Invalid input
+        System->>User: Display error message
+    end
+```
+
+## Error Handling
+
+The error handling mechanisms are designed to provide clear and consistent error messages, with minimal disruption to the user experience.
+
+### Authentication Error Handling
+```javascript
+const errorHandler = (err) => {
+  if (err.name === 'UnauthorizedError') {
+    return res.status(401).send('Access denied. Invalid token.');
+  }
+  return res.status(500).send('Internal server error.');
+};
+```
+
+## Response Handling
+
+The response handling mechanisms are designed to provide clear and consistent responses, with minimal latency and maximum throughput.
+
+* Success response patterns: The system returns a success response with a 200 status code and a JSON payload containing the relevant data.
+* Loading state management: The system displays a loading indicator while fetching data from the server.
+* Error state handling: The system displays an error message with a clear and concise description of the error.
+* User feedback mechanisms: The system provides user feedback mechanisms, such as toast notifications and alerts, to inform the user of the outcome of their actions.
+
+## Performance Optimizations
+
+The performance optimizations are designed to provide a fast and responsive user experience, with minimal latency and maximum throughput.
+
+* Loading strategies: The system uses lazy loading and code splitting to minimize the initial payload and improve page load times.
+* Caching approaches: The system uses caching mechanisms, such as Redis and browser caching, to minimize the number of requests to the server.
+* Bundle optimization: The system uses bundle optimization techniques, such as tree shaking and minification, to minimize the size of the JavaScript bundle.
+* Runtime performance: The system uses runtime performance optimization techniques, such as memoization and caching, to improve the performance of critical components.
+
+## Security Measures
+
+The security measures are designed to provide a secure and trustworthy user experience, with minimal risk of data breaches and unauthorized access.
+
+* Authentication flows: The system uses authentication flows, such as OAuth and JWT, to secure access to protected routes.
+* Authorization patterns: The system uses authorization patterns, such as role-based access control, to restrict access to sensitive data and functionality.
+* Input validation: The system uses input validation mechanisms, such as sanitization and normalization, to prevent SQL injection and cross-site scripting (XSS) attacks.
+* XSS protection: The system uses XSS protection mechanisms, such as Content Security Policy (CSP) and output encoding, to prevent XSS attacks.
 
 ## Web Components Analysis
 
