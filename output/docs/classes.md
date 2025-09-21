@@ -2,9 +2,15 @@
 
     ## Class Overview and UML Diagrams
 
+<<<<<<< HEAD
     **Class Documentation**
 ========================
 ### 1. Object-Oriented Design Overview
+=======
+## Classes/Components Documentation
+### Overview
+The project's class structure analysis reveals
+>>>>>>> 3a41d26666096a70435309884e6429a783a5c594
 
 The project utilizes object-oriented programming (OOP) principles to organize and structure its codebase. Although only one class, `on`, is detected in the JavaScript code, we can still apply OOP concepts to understand its design and potential relationships with other components. OOP principles such as encapsulation, inheritance, and polymorphism are essential for creating modular, reusable, and maintainable code.
 

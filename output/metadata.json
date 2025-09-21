@@ -8379,7 +8379,11 @@
     ],
     "graph_complexity": "Low"
   },
+<<<<<<< HEAD
   "generation_time": "2025-09-21T05:48:38.348351",
+=======
+  "generation_time": "2025-09-16T22:15:12.244690",
+>>>>>>> 3a41d26666096a70435309884e6429a783a5c594
   "repository_url": "https://github.com/Barath-tech/The-Wild-Oasis.git",
   "supported_languages": [
     "python",
