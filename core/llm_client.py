@@ -47,6 +47,7 @@ class LLMClient:
         {DOC_PROMPT}
         
         Generate a comprehensive OVERVIEW section for this project:
+            A summary of the project starting with the project name and a brief detail about the project.
         
         Project Statistics:
         - Total Files: {metadata['total_files']}
@@ -65,16 +66,37 @@ class LLMClient:
         - Documentation Files: {len(metadata.get('project_structure', {}).get('documentation_files', []))}
         
         Create a detailed overview that includes:
+
+        # Project Overview
         1. Project purpose and domain (what this application does)
-        2. Technology stack explanation (languages, frameworks, tools used)
-        3. Tools and frameworks identified in the codebase
-        4. Project layout and organization (how files and folders are structured)
-        5. How different components work together (system integration)
-        6. Development approach and methodology evident from structure
+        2. Core features and functionalities
+        3. Target users and use cases
+
+        # Technical Overview
+        ```mermaid
+        graph TD
+            A[Project Structure] --> B[Frontend Layer]
+            A --> C[Backend Layer]
+            A --> D[Data Layer]
+            B --> E[UI Components]
+            B --> F[Static Assets]
+            C --> G[Business Logic]
+            C --> H[API Services]
+            D --> I[Database]
+            D --> J[File Storage]
+        ```
+
+        1. Technology stack explanation (languages, frameworks, tools used)
+        2. Tools and frameworks identified in the codebase
+        3. Project layout and organization (how files and folders are structured)
+        4. How different components work together (system integration)
+        5. Development approach and methodology evident from structure
+        6. Key architectural decisions
         7. Links and navigation to other documentation sections
         
         Write in a way that both developers and non-technical stakeholders can understand.
         Provide detailed explanations with examples where applicable, not just one-liner descriptions.
+        Include real examples from the codebase where possible.
         """
         
         return self._call_llm(prompt)
@@ -114,6 +136,60 @@ class LLMClient:
         Top Backend Files: {[f['path'] for f in sorted(backend_files, key=lambda x: x.get('lines', 0), reverse=True)][:5]}
         
         Create detailed architecture documentation that includes:
+
+        # System Architecture Overview
+
+        ## High-Level Architecture
+        ```mermaid
+        graph TD
+            A[Client Layer] --> B[Application Layer]
+            B --> C[Data Access Layer]
+            C --> D[(Database)]
+            
+            %% Client Layer Components
+            A --> E[UI Components]
+            A --> F[Static Assets]
+            A --> G[Client-Side Logic]
+            
+            %% Application Layer Components
+            B --> H[Business Logic]
+            B --> I[Services]
+            B --> J[Utilities]
+            
+            %% Data Layer Components
+            C --> K[Data Models]
+            C --> L[Repositories]
+            C --> M[Query Services]
+        ```
+
+        ## Component Interaction Flow
+        ```mermaid
+        sequenceDiagram
+            participant U as User
+            participant F as Frontend
+            participant B as Backend
+            participant D as Database
+            
+            U->>F: User Action
+            F->>B: API Request
+            B->>D: Query Data
+            D-->>B: Return Results
+            B-->>F: Response
+            F-->>U: Update UI
+        ```
+
+        ## Deployment Architecture
+        ```mermaid
+        graph LR
+            A[Client] --> B[Load Balancer]
+            B --> C[Web Server 1]
+            B --> D[Web Server 2]
+            C --> E[(Primary DB)]
+            D --> E
+            E --> F[(Replica DB)]
+        ```
+
+        Create detailed documentation that includes:
         1. **System Architecture Overview**: What type of application this is (web app, enterprise system, etc.)
         2. **Architectural Patterns**: MVC, layered architecture, or other patterns identified
         3. **Component Relationships**: How web, business, and data layers interact
@@ -124,9 +200,10 @@ class LLMClient:
         5. **Data Flow**: How information flows through the system
         6. **Integration Points**: APIs, databases, external services
         7. **Deployment Architecture**: How components are organized for deployment
-        8. **Flow Diagrams** (textual description): Step-by-step process flows
-        9. **Scalability Considerations**: How the architecture supports growth
-        10. **Security Architecture**: Authentication, authorization patterns
+        8. **Scalability Considerations**: How the architecture supports growth
+        9. **Security Architecture**: Authentication, authorization patterns
+        10. **Error Handling**: How the system manages and responds to errors
+        11. **Monitoring & Logging**: How system health and performance are tracked
         
         Explain technical concepts in plain English for non-technical readers while maintaining depth for developers.
         Provide specific examples from the codebase structure where possible.
@@ -196,6 +273,7 @@ class LLMClient:
            - Main entities and their relationships
            - Primary and foreign key relationships
            - Cardinality between tables
+           - Give me a mermaid ERD diagram
         4. **Table Descriptions**: Purpose and structure of each major table
         5. **Stored Procedures and Functions**: Business logic implemented in database
         6. **Data Access Patterns**: How the application connects to and uses the database
@@ -277,6 +355,7 @@ class LLMClient:
         1. **Object-Oriented Design Overview**: How OOP principles are applied in this project
         2. **Class Hierarchy and Relationships**: Inheritance trees and composition patterns
         3. **UML Diagram Explanation** (textual representation):
+           - Create a mermaid class diagram
            - Class relationships (inheritance, composition, aggregation)
            - Method signatures and responsibilities
            - Dependencies between classes
@@ -374,6 +453,7 @@ class LLMClient:
         } for f in web_files[:15]], indent=2)}
         
         Create detailed web documentation that includes:
+        Create flow diagram in mermaid syntax
         1. **Web Application Structure**: Overall web architecture (JSP-based web application)
         2. **User Interface Components**:
            - JSP pages and their purposes
@@ -420,13 +500,16 @@ class LLMClient:
         """
         
         return self._call_llm(prompt)
+
+    
     
     def _call_llm(self, prompt: str) -> str:
         """Make LLM API call with error handling."""
         try:
             response = self.client.complete(
                 messages=[
-                    SystemMessage("You are a code documentation assistant."),
+                    SystemMessage("You are a Professional Codebase Documentation Generator. "
+    "Your role is to analyze a given repository and produce a polished, detailed, README-style document. "),
                     UserMessage(prompt),
                 ],
                 model=self.model,

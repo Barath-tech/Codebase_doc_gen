@@ -2,12 +2,8 @@
 
 ## Architecture Overview
 
-**Architecture**
-===============
-
-### 1. System Architecture Overview
-
-The project is
+# System Architecture Overview
+The system is a web application designed to manage bookings and
 
 ## Dependency Analysis
 
