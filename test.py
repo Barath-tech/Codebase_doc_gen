@@ -1,3 +1,4 @@
+
 # test.py
 import streamlit as st
 import uuid
@@ -13,12 +14,12 @@ def answer_query(query, conversation_id, user_id):
     }
 
 st.set_page_config(
-    page_title="Major Incident Triaging Agent",
+    page_title="Sample Chatbot Agent",
     layout="wide",
     initial_sidebar_state="auto"
 )
 
-st.title("Major Incident Triaging Chatbot")
+st.title("Sample Chatbot Agent")
 
 # --- Custom CSS ---
 st.markdown(
@@ -43,12 +44,25 @@ st.markdown(
         z-index: 999;
     }
 
-    .scrollable-chat {
-        max-height: 65vh;
-        overflow-y: auto;
-        margin-bottom: 130px;
-        padding: 8px;
-    }
+.scrollable-chat {
+    position: absolute;
+    top: 80px; /* adjust based on your title/question cards */
+    bottom: 100px; /* leave space for input box */
+    left: 0;
+    right: 0;
+    padding: 8px;
+    overflow-y: auto;
+}
+
+div.stVerticalBlock > div.fixed-bottom-input {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 1000 !important;
+    padding: 12px !important;
+    background: rgba(255,255,255,0.9) !important;
+}
 
     .chat-bubble-left {
         background: rgba(255, 255, 255, 0.25);
@@ -122,45 +136,38 @@ st.markdown(
     }
 
     /* --- Question Cards --- */
-    .question-cards {
-        display: flex;
-        gap: 14px;
-        flex-wrap: wrap;
-        margin: 12px 0 20px 0;
-    }
-    .question-card {
-        background: rgba(255, 255, 255, 0.1); /* more translucent */
+    div.stButton > button {
+        background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.12),
+            rgba(255, 255, 255, 0.08)
+        );
         border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: var(--base-radius);
+        border-radius: 12px;
         padding: 16px 22px;
         font-size: 1em;
         cursor: pointer;
         transition: all 0.25s ease-in-out;
         backdrop-filter: blur(14px) saturate(180%);
         -webkit-backdrop-filter: blur(14px) saturate(180%);
-        color: #fff;
+        color: #000;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
         text-align: center;
         min-width: 200px;
-        background: linear-gradient(
-            135deg,
-            rgba(255, 255, 255, 0.12),
-            rgba(255, 255, 255, 0.08)
-        ); /* subtle glass gradient */
+        margin: 6px;
     }
 
-    .question-card:hover {
+    div.stButton > button:hover {
         background: rgba(72, 61, 139, 0.35); /* slateBlue hover */
         border-color: rgba(72, 61, 139, 0.6);
         transform: translateY(-3px) scale(1.05);
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        color: #fff;
     }
-
     </style>
     """,
     unsafe_allow_html=True,
 )
-
 
 # --- Session State Initialization ---
 if "conversation_id" not in st.session_state:
@@ -179,6 +186,8 @@ if "clear_input" not in st.session_state:
     st.session_state["clear_input"] = False
 if "pending_query" not in st.session_state:
     st.session_state["pending_query"] = ""
+if "show_questions" not in st.session_state:
+    st.session_state["show_questions"] = True
 
 # --- New Chat Button ---
 new_chat_clicked = st.button("🗑️ New Chat", key="new_chat_btn", help="Start a new conversation", use_container_width=False)
@@ -190,34 +199,30 @@ if new_chat_clicked:
     st.session_state["user_query"] = ""
     st.session_state["pending_query"] = ""
     st.session_state["clear_input"] = True
+    st.session_state["show_questions"] = True
     st.rerun()
 
 # --- Predefined Question Cards ---
-st.subheader("💡 Try asking:")
-predefined_questions = [
-    "What is the status of incident INC123?",
-    "Show me today's critical incidents",
-    "Which team is handling the payment failures?",
-    "Give me a summary of recent major incidents"
-]
+if st.session_state["show_questions"] and not st.session_state["chat_history"]:
+    st.subheader("💡 Try asking:")
+    predefined_questions = [
+        "What is the status of incident INC123?",
+        "Show me today's critical incidents",
+        "Which team is handling the payment failures?",
+        "Give me a summary of recent major incidents"
+    ]
 
-cols = st.columns(len(predefined_questions))
-for i, q in enumerate(predefined_questions):
-    # Each div has a clickable action via st.session_state
-    if cols[i].button(q, key=f"hidden_btn_{i}"):
-        st.session_state["user_query"] = q
-        st.session_state["clear_input"] = False
-        st.rerun()
+    cols = st.columns(len(predefined_questions))
+    for i, q in enumerate(predefined_questions):
+        if cols[i].button(q, key=f"pre_q_{i}"):
+            st.session_state["user_query"] = q
+            st.session_state["clear_input"] = False
+            st.session_state["show_questions"] = False
+            st.session_state["pending_query"] = q
+            st.rerun()
 
-    # Glassy visual div (click triggers hidden button)
-    html = f"""
-    <div class='question-card' onclick="document.querySelector('button[k="hidden_btn_{i}"]').click()">
-        {q}
-    </div>
-    """
-    cols[i].markdown(html, unsafe_allow_html=True)
 # --- Conversation Chat Bubbles ---
-st.markdown("<div class='scrollable-chat'>", unsafe_allow_html=True)
+st.markdown("<div class='scrollable-chat'style='height:65vh; overflow-y:auto; margin-bottom:80px;>", unsafe_allow_html=True)
 for idx, msg in enumerate(st.session_state["chat_history"]):
     if msg["role"] == "assistant":
         st.markdown(f'<div class="chat-bubble-left">{msg["content"]}</div>', unsafe_allow_html=True)
@@ -242,10 +247,9 @@ if st.session_state.get("latency") is not None:
 
 # --- Submit Query Function ---
 def submit_query():
-    if st.session_state["user_query"]:
-        st.session_state["pending_query"] = st.session_state["user_query"]
-        st.session_state["user_query"] = ""  # clear input
-        st.session_state["clear_input"] = True
+    if st.session_state["user_query"].strip():
+        st.session_state["pending_query"] = st.session_state["user_query"].strip()
+        st.session_state["user_query"] = ""  # clear input box
         st.rerun()
 
 # --- Input Field at Bottom ---
@@ -255,11 +259,11 @@ with input_placeholder.container():
     col1, col2 = st.columns([12, 1])
     user_query = col1.text_input(
         "Type your message...",
-        value=st.session_state.get("user_query", ""),
-        key="bottom_input",
+        value=st.session_state.get("user_query", ""),   
+        key="user_query",
         label_visibility="collapsed",
         placeholder="Ask your question...",
-        on_change=submit_query
+        on_change=submit_query   # pressing Enter will trigger this
     )
     col2.button("➤", key="send_btn", help="Send your message", on_click=submit_query)
     st.markdown('</div>', unsafe_allow_html=True)
@@ -279,3 +283,4 @@ if st.session_state["pending_query"]:
             st.rerun()
         except Exception as e:
             st.error(f"Error: {e}")
+
