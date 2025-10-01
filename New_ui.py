@@ -1,14 +1,23 @@
 import streamlit as st
 import uuid
 import time
+from google import genai
+from google.genai import types
 
+
+client = genai.Client(api_key="your apikey here")
 # --- Mock answer_query ---
 def answer_query(query, conversation_id, user_id):
-    time.sleep(1.0)  # simulate latency
+    time.sleep(5)  # simulate 5 sec spinner wait
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",  # or gemini-2.5-pro
+        contents=query,
+        config=types.GenerateContentConfig()
+    )
     return {
-        "answer": f"🔎 Mock response for query: '{query}'",
-        "chunks": [{"sheet": "MockSheet", "row": 1, "distance": 0.01, "text": f"Details for {query}"}],
-        "latency": 1.0,
+        "answer": response.text,   # Gemini output
+        "chunks": [{"sheet": "GeminiMock", "row": 1, "distance": 0.00, "text": response.text[:80]}],
+        "latency": 5.0,
     }
 
 st.set_page_config(page_title="Sample Chatbot Agent", layout="wide")
@@ -171,12 +180,10 @@ if st.session_state["show_questions"] and not st.session_state["chat_history"]:
     cols = st.columns(len(predefined_questions))
     for i, q in enumerate(predefined_questions):
         if cols[i].button(q, key=f"pre_q_{i}"):
-            st.session_state["user_query"] = q
-            st.session_state["clear_input"] = False
-            st.session_state["show_questions"] = False
+            # Same flow as user input
+            st.session_state["chat_history"].append({"role": "user", "content": q})
             st.session_state["pending_query"] = q
             st.rerun()
-
 # --- Chat History ---
 for idx, msg in enumerate(st.session_state["chat_history"]):
     if msg["role"] == "user":
@@ -204,30 +211,25 @@ if st.session_state.get("latency") is not None:
 user_query = st.chat_input("Type your message...")
 
 if user_query:
-    # Save user message
+    # Step 1: Add user query immediately
     st.session_state["chat_history"].append({"role": "user", "content": user_query})
-
-    # Mock assistant response
-    with st.spinner("Retrieving answer..."):
-        result = answer_query(user_query, st.session_state["conversation_id"], st.session_state["user_id"])
-        st.session_state["chat_history"].append({"role": "assistant", "content": result["answer"]})
-        st.session_state["sources_history"].append(result["chunks"])
-        st.session_state["latency"] = result["latency"]
-
+    st.session_state["pending_query"] = user_query
     st.rerun()
 
-# --- Message Sending Logic ---
+# --- Pending Query Processing ---
 if st.session_state["pending_query"]:
-    query = st.session_state["pending_query"]
-    st.session_state["pending_query"] = ""
-
-    with st.spinner("Retrieving answer..."):
-        try:
-            result = answer_query(query, st.session_state["conversation_id"], st.session_state["user_id"])
-            st.session_state["chat_history"].append({"role": "user", "content": query})
-            st.session_state["chat_history"].append({"role": "assistant", "content": result["answer"]})
-            st.session_state["sources_history"].append(result["chunks"])
-            st.session_state["latency"] = result["latency"]
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error: {e}")
+    with st.chat_message("assistant"):
+        with st.spinner("Retrieving answer..."):
+            try:
+                result = answer_query(
+                    st.session_state["pending_query"],
+                    st.session_state["conversation_id"],
+                    st.session_state["user_id"],
+                )
+                st.session_state["chat_history"].append({"role": "assistant", "content": result["answer"]})
+                st.session_state["sources_history"].append(result["chunks"])
+                st.session_state["latency"] = result["latency"]
+                st.session_state["pending_query"] = ""  # clear
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
