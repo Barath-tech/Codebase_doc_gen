@@ -1,0 +1,25 @@
+Options in front screen can be like below
+
+Specific Portfolio where issue is seen -> if user selects this, then show list of portfolios and then ask further details
+
+Issues reported in a specific time period (Clock Change/Peak/Last Year/MMYY to MMYY)
+
+Specific Tool/Application Issue (Control M/WMS)
+
+As and when user selects any option then conversation should continue in same page. Provide basic info (whatever shown in table) and ask follow up suggestions/questions to show further data
+
+Incident Intelligence Assistant
+
+Welcome! This Al Agent is your smart companion for incident triage and analysis.
+
+Whether you're investigating a current issue or exploring historical trends, here's what you can do:
+
+including Search Past Incidents: Instantly retrieve similar incidents from historical data root causes, recovery actions, impacted teams, and resolution timelines.
+
+Training
+
+Analyze Trends: View incidents by time period, portfolio, or other dimensions to uncover patterns and recurring issues.
+
+Accelerate Triage: Get contextual insights to speed up decision-making and reduce downtime.
+
+Team Collaboration: Identify which teams were involved in past resolutions to streamline coordination.
