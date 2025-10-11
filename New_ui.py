@@ -2,7 +2,7 @@ import streamlit as st
 import uuid
 import time
 from rag_pipeline import answer_query
-from config import IMG
+
 
 
 st.set_page_config(
@@ -137,6 +137,25 @@ st.markdown(
         color: #5a3ea1;
     }}
 
+    .chat-container {{
+        max-height: 70vh;  /* Adjust as needed */
+        overflow-y: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+    }}
+
+    @keyframes slideInLeft {{
+        0% {{
+            opacity: 0;
+            transform: translateX(-40px);
+        }}
+        100% {{
+            opacity: 1;
+            transform: translateX(0);
+        }}
+    }}
+
     /* --- Question Cards --- */
     div.stButton > button {{
         background: linear-gradient(
@@ -157,6 +176,7 @@ st.markdown(
         text-align: center;
         min-width: 200px;
         margin: 6px;
+        animation: slideInLeft 0.8s ease-out;
     }}
 
     div.stButton > button:hover {{
@@ -197,178 +217,169 @@ if "text_input" not in st.session_state:
 # --- Welcome Message ---
 
 if st.session_state["welcome"]:
-    st.markdown("""
-    ## 👋 *Welcome!*
-    **SARA** *is your AI-powered Smart Automated Resolution Assistant for rapid incident insights, triage, and resolution support.*
+    left, right = st.columns([2, 1])
 
-    **What can you do here?**
+    with left:
+        st.markdown("""
+        ## 👋 *Welcome!*
+        **SARA** *is your AI-powered Smart Automated Resolution Assistant for rapid incident insights, triage, and resolution support.*
 
-    🔍**Search Past Incidents:** Instantly retrieve similar incidents from historical data root causes, recovery actions, impacted teams, and resolution timelines.Training
+        **What can you do here?**
 
-    📊**Analyze Trends:** View incidents by time period, portfolio, or other dimensions to uncover patterns and recurring issues.
+        🔍 **Search Past Incidents:** Instantly retrieve similar incidents from historical data (root causes, recovery actions, impacted teams, resolution timelines).
 
-    🧠**Accelerate Triage:** Get contextual insights to speed up decision-making and reduce downtime.
+        📊 **Analyze Trends:** View incidents by time period, portfolio, or other dimensions to uncover recurring issues.
 
-    🎓**Team Collaboration:** Identify which teams were involved in past resolutions to streamline coordination.
-    """)
+        🧠 **Accelerate Triage:** Get contextual insights to speed up decision-making and reduce downtime.
+
+        🎓 **Team Collaboration:** Identify which teams were involved in past resolutions to streamline coordination.
+        """)
+
+    with right:
+        st.subheader("💡 Try any of these:")
+        options = [
+            "Specific Portfolio where issue is seen",
+            "Issues reported in a specific time period",
+            "Specific Tool/Application Issue"
+        ]
+        for i, opt in enumerate(options):
+            if st.button(opt, key=f"option_{i}"):
+                st.session_state["conversation_id"] = str(uuid.uuid4())
+                st.session_state["chat_history"] = []
+                st.session_state["show_questions"] = False
+                st.session_state["welcome"] = False
+                st.session_state["selected_option"] = opt
+                st.session_state["chat_history"].append({"role": "user", "content": opt})
+                st.rerun()
 
 
-
-
-# --- Option Cards ---
-import pandas as pd
-import os
-pending = bool(st.session_state.get("pending_query"))
-if st.session_state["show_questions"]:
-    st.subheader("💡 Select an option:")
-    options = [
-        "Specific Portfolio where issue is seen",
-        "Issues reported in a specific time period",
-        "Specific Tool/Application Issue"
-    ]
-    cols = st.columns(len(options))
-    for i, opt in enumerate(options):
-        if cols[i].button(opt, key=f"option_{i}"):
-            st.session_state["conversation_id"] = str(uuid.uuid4())
-            st.session_state["chat_history"] = []
-            st.session_state["show_questions"] = False
-            st.session_state["welcome"] = False
-            st.session_state["selected_option"] = opt
-            st.session_state["chat_history"].append({"role":"user","content": opt})
-            st.rerun()
-
-# --- Option Handling ---
 if "selected_option" in st.session_state and not st.session_state["show_questions"] and not st.session_state["pending_query"]:
-    excel_path = os.path.join("data", "Major Significant & Key Incidents KB-2.xlsx")
-    try:
-        df = pd.read_excel(excel_path)
-    except Exception as e:
-        st.error(f"Error loading Excel: {e}")
-        df = None
 
-    if st.session_state["selected_option"] == "Specific Portfolio where issue is seen" and df is not None:
-        portfolios = (
-            df["Product Portfolio -Area of cause"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .replace(["none", "nill", "nil", "nan"], "")
-            .unique()
-        )
-        portfolios = sorted(set([p.title() for p in portfolios if p]))
+    if st.session_state["selected_option"] == "Specific Portfolio where issue is seen":
+        portfolios =["Foods", "FH&B","Customer Channels","International","Group Technology Services","HR","InfoSec","Enterprise Integration", "SAP"]
+       
         portfolio_list = "<br>".join([f"• <b>{p}</b>" for p in portfolios])
         st.session_state["chat_history"].append({
             "role": "assistant",
-            "content": f"These are all the portfolios available:<br><br>{portfolio_list}<br><br>You can choose any of these portfolios and ask incident queries related to it."
+            "content": f"Here are some of the common portfolios:<br><br>{portfolio_list}<br><br>You can pick any of these or mention another portfolio if it is not listed here and ask incident queries related to it."
         })
         st.session_state["selected_option"] = None
         st.rerun()
     elif st.session_state["selected_option"] == "Issues reported in a specific time period":
-        periods = ["Clock Change", "Peak", "Last Year", "MMYY to MMYY"]
+        periods = ["Clock Change", "Peak period", "Last Year"]
+        period_list = "<br>".join([f"• <b>{p}</b>" for p in periods])
         st.session_state["chat_history"].append({
             "role": "assistant",
-            "content": "Please select a time period:<br><br>" + ", ".join([f"<b>{p}</b>" for p in periods]) + "<br><br>After selecting, please provide further details about the issue."
+            "content": f"Here are a few sample time periods you can refer to:<br><br>{period_list}<br><br>You can choose any of these or if you need some other timeline, mention that and ask further incident details."
         })
         st.session_state["selected_option"] = None
         st.rerun()
-    elif st.session_state["selected_option"] == "Specific Tool/Application Issue" and df is not None:
-        apps = (
-            df["Application/Service Impacted?"]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .str.lower()
-            .replace(["none", "nill", "nil", "nan"], "")
-            .unique()
-        )
-        apps = sorted(set([a.title() for a in apps if a]))
+    elif st.session_state["selected_option"] == "Specific Tool/Application Issue":
+        apps = ["Relex","ControlM","WCS","JDA Dispatcher","ASO", "POS"]
+        
         app_list = "<br>".join([f"• <b>{a}</b>" for a in apps])
         st.session_state["chat_history"].append({
             "role": "assistant",
-            "content": f"Please select an application/service from the following list:<br><br>{app_list}<br><br>After selecting, please provide further details about the issue."
+            "content": f"Here are some of the commonly handled Tools/Applications:<br><br>{app_list}<br><br>You can pick any of these or mention another portfolio if it is not listed here and ask incident queries related to it."
         })
         st.session_state["selected_option"] = None
         st.rerun()
 
 # --- New Chat Button  ---
 
+# --- Sidebar Home Button ---
 if not st.session_state["welcome"] and not st.session_state["show_questions"]:
+    with st.sidebar:
+        st.title("👧🏻 SARA")
+        if st.button("Go to Home", key="home_btn"):
+            st.session_state["chat_history"] = []
+            st.session_state["show_questions"] = True
+            st.session_state["welcome"] = True
+            st.rerun()
 
-    home_clicked = st.button("🏠 Home", key="home_btn", help="Go to home screen", use_container_width=False, disabled=pending)
-    if home_clicked:
-        st.session_state["chat_history"] = []
-        st.session_state["show_questions"] = True
-        st.session_state["welcome"] = True
-        st.rerun()
+# --- Chat Container (only after welcome) ---
+if not st.session_state["welcome"] and not st.session_state["show_questions"]:
+    st.markdown(
+        """
+        <style>
+        .chat-container {
+            max-height: 75vh; 
+            overflow-y: auto;
+            padding: 10px;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
-if not st.session_state["welcome"]:
-    new_chat_clicked = st.button("New Chat", key="new_chat_btn", help="Start a new conversation", use_container_width=False, disabled=pending)
-    if new_chat_clicked:
-        st.session_state["conversation_id"] = str(uuid.uuid4())
-        st.session_state["chat_history"] = []
-        st.session_state["show_questions"] = False
-        st.session_state["welcome"] = False
-        # st.session_state["sources_history"] = []
-        # st.session_state["latency"] = None
-        # st.session_state["user_query"] = ""
-        # st.session_state["pending_query"] = ""
-        st.session_state["chat_history"].append({"role": "assistant", "content": "Hi! I'm Sara, your triaging assistant. How can i help you?"})
-        st.rerun()
+    st.markdown('<div id="chat-container" class="chat-container">', unsafe_allow_html=True)
+    for idx, msg in enumerate(st.session_state["chat_history"]):
+        if msg["role"] == "user":
+            st.markdown(f'<div class="chat-bubble-user">{msg["content"]}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="chat-bubble-assistant">{msg["content"]}</div>', unsafe_allow_html=True)
+            # Show latency if available
+            if "latency" in st.session_state and st.session_state["latency"] is not None:
+                st.markdown(f"⏱️ <b>Response time:</b> {st.session_state['latency']:.2f} seconds", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Chat History ---
-for idx, msg in enumerate(st.session_state["chat_history"]):
-    if msg["role"] == "user":
-   
-        st.markdown(f'<div class="chat-bubble-user">{msg["content"]}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div class="chat-bubble-assistant">{msg["content"]}</div>', unsafe_allow_html=True)
-        # --- Retrieved chunks display is commented out ---
-        # # --- Show retrieved chunks and sources for this assistant response ---
-        # # Find the corresponding result if available
-        # # We'll use sources_history to store the chunks for each assistant response
-        # ai_idx = [i for i, m in enumerate(st.session_state["chat_history"][:idx+1]) if m["role"] == "assistant"]
-        # if "sources_history" in st.session_state and ai_idx:
-        #     # Map assistant message index to sources_history index
-        #     src_idx = len(ai_idx) - 1
-        #     if src_idx < len(st.session_state["sources_history"]):
-        #         chunks = st.session_state["sources_history"][src_idx]
-        #         if chunks and len(chunks) > 0:
-        #             sources_html = ""
-        #             for chunk in chunks:
-        #                 sheet = chunk.get("sheet")
-        #                 row = chunk.get("row")
-        #                 dist = chunk.get("distance")
-        #                 text = chunk.get("text", "")[:120]
-        #                 sources_html += f'<div>`{sheet}` | Row: `{row}` | Distance: `{dist:.4f}`<br>Text: {text}...</div><hr style="margin:2px 0">'
-        #             st.markdown(f'<div class="sources-bubble"><b>Retrieved Chunks:</b><br>{sources_html}</div>', unsafe_allow_html=True)
-        #         else:
-        #             st.markdown(f'<div class="sources-bubble">No retrieved chunks for this response.</div>', unsafe_allow_html=True)
-        # # Show latency if available
-        if "latency" in st.session_state and st.session_state["latency"] is not None:
-            st.markdown(f"⏱️ <b>Response time:</b> {st.session_state['latency']:.2f} seconds", unsafe_allow_html=True)
+    # --- Auto scroll to bottom ---
+    st.markdown(
+        """
+        <script>
+        const chatContainer = document.getElementById('chat-container');
+        if(chatContainer){
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        </script>
+        """,
+        unsafe_allow_html=True,
+    )
 
+# --- Hint text on welcome ---
+if st.session_state["welcome"]:
+    st.markdown(
+        """
+        <style>
+        /* Disable scrolling on the welcome page */
+        .css-18e3th9 {  /* Streamlit main scrollable container */
+            overflow: hidden;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <style>
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .hint-text {
+            text-align: center;
+            color: #555;
+            font-size: 0.95em;
+            margin-bottom: 6px;
+            animation: fadeIn 1.2s ease-in-out;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        </style>
+        <div class='hint-text'>
+            💬 If you want to ask something directly, you can type it here below 👇
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# if st.session_state.get("latency") is not None:
-#     st.markdown(f"⏱️ **Response time:** {st.session_state['latency']:.2f} seconds")
-
-# --- Sticky Input (chat_input is auto-fixed at bottom) ---
-# if not st.session_state["welcome"] and not st.session_state["show_questions"]:
-
-
+# --- Single chat_input for both welcome and post-welcome ---
 user_query = st.chat_input("Type your message...")
 
-
 if user_query:
-    # Step 1: Add user query immediately
-    
     st.session_state["welcome"] = False
     st.session_state["show_questions"] = False  
     st.session_state["chat_history"].append({"role": "user", "content": user_query})
-    
     st.session_state["pending_query"] = user_query
-    # result = {"answer": "Answer"}   
-    
     st.rerun()
 
 
@@ -410,3 +421,4 @@ if st.session_state["pending_query"]:
             st.rerun()
         except Exception as e:
             st.error(f"Error: {e}")
+
